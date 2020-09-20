@@ -3,6 +3,7 @@ name = "lobster"
 version = "0.1.0"
 authors = ["Michele Lacchia <michelelacchia@gmail.com>"]
 edition = "2018"
+license = "ISC"
 
 description = "A fast limit order book (LOB)"
 homepage = "https://github.com/rubik/lobster"
