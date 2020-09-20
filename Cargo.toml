@@ -1,0 +1,12 @@
+[package]
+name = "lobster"
+version = "0.1.0"
+authors = ["Michele Lacchia <michelelacchia@gmail.com>"]
+edition = "2018"
+
+description = "A fast limit order book (LOB)"
+homepage = "https://github.com/rubik/lobster"
+repository = "https://github.com/rubik/lobster"
+keywords = ["orderbook", "order", "limit", "hft"]
+
+[dependencies]
