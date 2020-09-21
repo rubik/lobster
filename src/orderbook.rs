@@ -92,15 +92,13 @@ impl OrderBook {
 
         match side {
             Side::Bid => {
-                remaining_qty =
-                    self.match_with_asks(id, qty, &mut fills, None);
+                remaining_qty = self.match_with_asks(id, qty, &mut fills, None);
                 if remaining_qty > 0 {
                     partial = true;
                 }
             }
             Side::Ask => {
-                remaining_qty =
-                    self.match_with_bids(id, qty, &mut fills, None);
+                remaining_qty = self.match_with_bids(id, qty, &mut fills, None);
                 if remaining_qty > 0 {
                     partial = true;
                 }
@@ -200,12 +198,8 @@ impl OrderBook {
             if remaining_qty == 0 {
                 break;
             }
-            let (new_fills, filled_qty) = Self::process_queue(
-                &mut self.orders,
-                queue,
-                remaining_qty,
-                id,
-            );
+            let (new_fills, filled_qty) =
+                Self::process_queue(&mut self.orders, queue, remaining_qty, id);
             if queue.is_empty() {
                 update_bid_ask = true;
             }
@@ -244,12 +238,8 @@ impl OrderBook {
             if remaining_qty == 0 {
                 break;
             }
-            let (new_fills, filled_qty) = Self::process_queue(
-                &mut self.orders,
-                queue,
-                remaining_qty,
-                id,
-            );
+            let (new_fills, filled_qty) =
+                Self::process_queue(&mut self.orders, queue, remaining_qty, id);
             if queue.is_empty() {
                 update_bid_ask = true;
             }
@@ -257,7 +247,8 @@ impl OrderBook {
             fills.extend(new_fills);
         }
 
-        let mut cur_bids = self.bids.iter().rev().filter(|(_, q)| !q.is_empty());
+        let mut cur_bids =
+            self.bids.iter().rev().filter(|(_, q)| !q.is_empty());
         self.max_bid = match cur_bids.next() {
             None => None,
             Some((p, _)) => Some(*p),
