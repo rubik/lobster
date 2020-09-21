@@ -127,7 +127,7 @@ impl OrderBook {
                     self.match_with_asks(id, qty, &mut fills, Some(price));
                 if remaining_qty > 0 {
                     partial = true;
-                    let index = self.orders.insert(id, price, qty);
+                    let index = self.orders.insert(id, price, remaining_qty);
                     match self.max_bid {
                         None => {
                             self.max_bid = Some(price);
@@ -149,7 +149,8 @@ impl OrderBook {
                 remaining_qty =
                     self.match_with_bids(id, qty, &mut fills, Some(price));
                 if remaining_qty > 0 {
-                    let index = self.orders.insert(id, price, qty);
+                    partial = true;
+                    let index = self.orders.insert(id, price, remaining_qty);
                     if let Some(a) = self.min_ask {
                         if price < a {
                             self.min_ask = Some(price);
@@ -224,7 +225,7 @@ impl OrderBook {
     ) -> u64 {
         let mut remaining_qty = qty;
         let mut update_bid_ask = false;
-        for (bid_price, queue) in self.bids.iter_mut() {
+        for (bid_price, queue) in self.bids.iter_mut().rev() {
             if update_bid_ask || self.max_bid.is_none() {
                 self.max_bid = Some(*bid_price);
                 update_bid_ask = false;
