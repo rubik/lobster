@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use crate::models::{FillMetadata, OrderEvent, OrderEventResult, Side};
+use crate::models::{FillMetadata, OrderAction, OrderEvent, Side};
 use crate::ordermap::OrderMap;
 
 const DEFAULT_MAP_SIZE: usize = 10_000;
@@ -39,22 +39,20 @@ impl OrderBook {
         }
     }
 
-    pub fn event(&mut self, event: OrderEvent) -> OrderEventResult {
+    pub fn event(&mut self, event: OrderAction) -> OrderEvent {
         match event {
-            OrderEvent::Market { id, side, qty } => {
+            OrderAction::Market { id, side, qty } => {
                 let (fills, partial, filled_qty) = self.market(id, side, qty);
                 if fills.is_empty() {
-                    OrderEventResult::Unfilled
+                    OrderEvent::Unfilled
                 } else {
                     match partial {
-                        false => OrderEventResult::Filled(filled_qty, fills),
-                        true => OrderEventResult::PartiallyFilled(
-                            filled_qty, fills,
-                        ),
+                        false => OrderEvent::Filled(filled_qty, fills),
+                        true => OrderEvent::PartiallyFilled(filled_qty, fills),
                     }
                 }
             }
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id,
                 side,
                 qty,
@@ -63,19 +61,17 @@ impl OrderBook {
                 let (fills, partial, filled_qty) =
                     self.limit(id, side, qty, price);
                 if fills.is_empty() {
-                    OrderEventResult::Placed(id)
+                    OrderEvent::Placed(id)
                 } else {
                     match partial {
-                        false => OrderEventResult::Filled(filled_qty, fills),
-                        true => OrderEventResult::PartiallyFilled(
-                            filled_qty, fills,
-                        ),
+                        false => OrderEvent::Filled(filled_qty, fills),
+                        true => OrderEvent::PartiallyFilled(filled_qty, fills),
                     }
                 }
             }
-            OrderEvent::Cancel(id) => {
+            OrderAction::Cancel(id) => {
                 self.cancel(id);
-                OrderEventResult::Canceled(id)
+                OrderEvent::Canceled(id)
             }
         }
     }
@@ -309,11 +305,11 @@ impl OrderBook {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{OrderEvent, OrderEventResult, Side};
+    use crate::models::{OrderAction, OrderEvent, Side};
     use crate::orderbook::{OrderBook, DEFAULT_QUEUE_SIZE};
     use std::collections::{BTreeMap, VecDeque};
 
-    fn init_ob(events: Vec<OrderEvent>) -> (OrderBook, Vec<OrderEventResult>) {
+    fn init_ob(events: Vec<OrderAction>) -> (OrderBook, Vec<OrderEvent>) {
         let mut ob = OrderBook::default();
         let mut results = Vec::new();
         for e in events {
@@ -345,13 +341,13 @@ mod tests {
 
     #[test]
     fn one_resting_order() {
-        let (ob, results) = init_ob(vec![OrderEvent::Limit {
+        let (ob, results) = init_ob(vec![OrderAction::Limit {
             id: 0,
             side: Side::Bid,
             qty: 12,
             price: 395,
         }]);
-        assert_eq!(results, vec![OrderEventResult::Placed(0)]);
+        assert_eq!(results, vec![OrderEvent::Placed(0)]);
         assert_eq!(ob.min_ask, None);
         assert_eq!(ob.max_bid, Some(395));
         assert_eq!(ob.asks, BTreeMap::new());
@@ -362,13 +358,13 @@ mod tests {
     #[test]
     fn two_resting_orders() {
         let (ob, results) = init_ob(vec![
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 0,
                 side: Side::Bid,
                 qty: 12,
                 price: 395,
             },
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 1,
                 side: Side::Ask,
                 qty: 2,
@@ -377,7 +373,7 @@ mod tests {
         ]);
         assert_eq!(
             results,
-            vec![OrderEventResult::Placed(0), OrderEventResult::Placed(1)]
+            vec![OrderEvent::Placed(0), OrderEvent::Placed(1)]
         );
         assert_eq!(ob.min_ask, Some(398));
         assert_eq!(ob.max_bid, Some(395));
@@ -389,13 +385,13 @@ mod tests {
     #[test]
     fn two_resting_orders_stacked() {
         let (ob, results) = init_ob(vec![
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 0,
                 side: Side::Bid,
                 qty: 12,
                 price: 395,
             },
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 1,
                 side: Side::Bid,
                 qty: 2,
@@ -404,7 +400,7 @@ mod tests {
         ]);
         assert_eq!(
             results,
-            vec![OrderEventResult::Placed(0), OrderEventResult::Placed(1)]
+            vec![OrderEvent::Placed(0), OrderEvent::Placed(1)]
         );
         assert_eq!(ob.min_ask, None);
         assert_eq!(ob.max_bid, Some(398));
@@ -416,19 +412,19 @@ mod tests {
     #[test]
     fn three_resting_orders_stacked() {
         let (ob, results) = init_ob(vec![
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 0,
                 side: Side::Bid,
                 qty: 12,
                 price: 395,
             },
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 1,
                 side: Side::Ask,
                 qty: 2,
                 price: 399,
             },
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 1,
                 side: Side::Bid,
                 qty: 2,
@@ -438,9 +434,9 @@ mod tests {
         assert_eq!(
             results,
             vec![
-                OrderEventResult::Placed(0),
-                OrderEventResult::Placed(1),
-                OrderEventResult::Placed(1)
+                OrderEvent::Placed(0),
+                OrderEvent::Placed(1),
+                OrderEvent::Placed(1)
             ]
         );
         assert_eq!(ob.min_ask, Some(399));
@@ -453,26 +449,26 @@ mod tests {
     #[test]
     fn crossing_limit_order_partial() {
         let (mut ob, results) = init_ob(vec![
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 0,
                 side: Side::Bid,
                 qty: 12,
                 price: 395,
             },
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 1,
                 side: Side::Ask,
                 qty: 2,
                 price: 399,
             },
-            OrderEvent::Limit {
+            OrderAction::Limit {
                 id: 1,
                 side: Side::Bid,
                 qty: 2,
                 price: 398,
             },
         ]);
-        let result = ob.event(OrderEvent::Limit {
+        let result = ob.event(OrderAction::Limit {
             id: 3,
             side: Side::Ask,
             qty: 1,
@@ -482,12 +478,12 @@ mod tests {
         assert_eq!(
             results,
             vec![
-                OrderEventResult::Placed(0),
-                OrderEventResult::Placed(1),
-                OrderEventResult::Placed(1)
+                OrderEvent::Placed(0),
+                OrderEvent::Placed(1),
+                OrderEvent::Placed(1)
             ]
         );
-        assert_eq!(result, OrderEventResult::Placed(3));
+        assert_eq!(result, OrderEvent::Placed(3));
         assert_eq!(ob.min_ask, Some(399));
         assert_eq!(ob.max_bid, Some(398));
         assert_eq!(ob.asks, init_book(vec![(399, 9998)]));

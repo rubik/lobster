@@ -3,5 +3,5 @@ mod models;
 mod orderbook;
 mod ordermap;
 
-pub use models::{FillMetadata, OrderEvent, OrderEventResult};
+pub use models::{FillMetadata, OrderAction, OrderEvent};
 pub use orderbook::OrderBook;

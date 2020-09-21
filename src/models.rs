@@ -5,7 +5,7 @@ pub enum Side {
 }
 
 #[derive(Debug)]
-pub enum OrderEvent {
+pub enum OrderAction {
     Market {
         id: u128,
         side: Side,
@@ -21,7 +21,7 @@ pub enum OrderEvent {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum OrderEventResult {
+pub enum OrderEvent {
     Unfilled,
     PartiallyFilled(u64, Vec<FillMetadata>),
     Filled(u64, Vec<FillMetadata>),
