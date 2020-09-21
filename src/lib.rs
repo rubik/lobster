@@ -1,4 +1,3 @@
-mod error;
 mod models;
 mod orderbook;
 mod ordermap;

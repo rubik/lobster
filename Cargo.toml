@@ -11,7 +11,3 @@ repository = "https://github.com/rubik/lobster"
 keywords = ["orderbook", "order", "limit", "hft"]
 
 [dependencies]
-custom_error = "1.8"
-
-[dev-dependencies]
-maplit = "1.0"
