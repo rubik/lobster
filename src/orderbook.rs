@@ -38,7 +38,7 @@ impl OrderBook {
                         true => OrderEventResult::PartiallyFilled(fills),
                     }
                 }
-            },
+            }
             OrderEvent::Limit {
                 id,
                 side,
@@ -58,7 +58,7 @@ impl OrderBook {
             OrderEvent::Cancel(id) => {
                 self.cancel(id);
                 OrderEventResult::Canceled(id)
-            },
+            }
         }
     }
 
@@ -66,7 +66,12 @@ impl OrderBook {
         self.orders.delete(&id)
     }
 
-    fn market(&mut self, id: u128, side: Side, qty: u64) -> (Vec<FillMetadata>, bool) {
+    fn market(
+        &mut self,
+        id: u128,
+        side: Side,
+        qty: u64,
+    ) -> (Vec<FillMetadata>, bool) {
         let mut partial = true;
         let mut update_bid_ask = false;
         let mut fills = Vec::new();
@@ -163,7 +168,9 @@ impl OrderBook {
                     let index: usize = self.orders.insert(id, price, qty);
                     self.bids
                         .entry(price)
-                        .or_insert_with(|| VecDeque::with_capacity(DEFAULT_QUEUE_SIZE))
+                        .or_insert_with(|| {
+                            VecDeque::with_capacity(DEFAULT_QUEUE_SIZE)
+                        })
                         .push_back(index);
                 }
             }
@@ -193,7 +200,9 @@ impl OrderBook {
                     let index: usize = self.orders.insert(id, price, qty);
                     self.asks
                         .entry(price)
-                        .or_insert_with(|| VecDeque::with_capacity(DEFAULT_QUEUE_SIZE))
+                        .or_insert_with(|| {
+                            VecDeque::with_capacity(DEFAULT_QUEUE_SIZE)
+                        })
                         .push_back(index);
                 }
             }
@@ -275,7 +284,10 @@ mod tests {
         }
     }
 
-    fn assert_order_queue(expected: &VecDeque<LimitOrder>, actual: &VecDeque<LimitOrder>) {
+    fn assert_order_queue(
+        expected: &VecDeque<LimitOrder>,
+        actual: &VecDeque<LimitOrder>,
+    ) {
         assert_eq!(expected.len(), actual.len());
         for i in 0..expected.len() {
             assert_order(expected.get(i).unwrap(), actual.get(i).unwrap());
@@ -308,21 +320,30 @@ mod tests {
             // Single add remove
             TestCase {
                 add: vec![LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000010",
+                    )
+                    .unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 5,
                 }],
                 expected_after_add: vec![VecDeque::from(vec![LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000010",
+                    )
+                    .unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 5,
                 }])],
                 remove: vec![LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000010",
+                    )
+                    .unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
@@ -334,14 +355,20 @@ mod tests {
             TestCase {
                 add: vec![
                     LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000010",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 5,
                     },
                     LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000001",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -350,14 +377,20 @@ mod tests {
                 ],
                 expected_after_add: vec![VecDeque::from(vec![
                     LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000010",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 5,
                     },
                     LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000001",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -365,32 +398,46 @@ mod tests {
                     },
                 ])],
                 remove: vec![LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000010",
+                    )
+                    .unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 5,
                 }],
-                expected_after_remove: vec![VecDeque::from(vec![LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
-                    amount: 10,
-                    symbol: Symbol::AAPL,
-                    side: Side::Buy,
-                    price: 5,
-                }])],
+                expected_after_remove: vec![VecDeque::from(vec![
+                    LimitOrder {
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000001",
+                        )
+                        .unwrap(),
+                        amount: 10,
+                        symbol: Symbol::AAPL,
+                        side: Side::Buy,
+                        price: 5,
+                    },
+                ])],
             },
             // Maintain sort
             TestCase {
                 add: vec![
                     LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000010",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 4,
                     },
                     LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000001",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -399,14 +446,20 @@ mod tests {
                 ],
                 expected_after_add: vec![
                     VecDeque::from(vec![LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000001",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 5,
                     }]),
                     VecDeque::from(vec![LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000010",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -416,14 +469,20 @@ mod tests {
                 remove: Vec::new(),
                 expected_after_remove: vec![
                     VecDeque::from(vec![LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000001",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 5,
                     }]),
                     VecDeque::from(vec![LimitOrder {
-                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str(
+                            "00000000-0000-0000-0000-000000000010",
+                        )
+                        .unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -438,12 +497,18 @@ mod tests {
                 let result = buy_ob.add_order(to_add);
                 assert!(!result.is_err());
             }
-            assert_order_book(buy_ob.get_book(), tc.expected_after_add.clone());
+            assert_order_book(
+                buy_ob.get_book(),
+                tc.expected_after_add.clone(),
+            );
             for &to_remove in tc.remove.iter() {
                 let result = buy_ob.remove_order(to_remove);
                 assert!(!result.is_err());
             }
-            assert_order_book(buy_ob.get_book(), tc.expected_after_remove.clone());
+            assert_order_book(
+                buy_ob.get_book(),
+                tc.expected_after_remove.clone(),
+            );
         }
     }
 
@@ -462,14 +527,20 @@ mod tests {
             Side::Buy,
             vec![
                 LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000010",
+                    )
+                    .unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 4,
                 },
                 LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000001",
+                    )
+                    .unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
@@ -479,7 +550,8 @@ mod tests {
         );
 
         let result = buy_ob.fill_order_helper(LimitOrder {
-            id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+            id: u128::parse_str("00000000-0000-0000-0000-000000000001")
+                .unwrap(),
             amount: 10,
             symbol: Symbol::AAPL,
             side: Side::Buy,
@@ -490,7 +562,8 @@ mod tests {
 
         // Sell for 3, should take any bids >= 3, best price first
         let result = buy_ob.fill_order_helper(LimitOrder {
-            id: u128::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
+            id: u128::parse_str("00000000-0000-0000-0000-000000000002")
+                .unwrap(),
             amount: 10,
             symbol: Symbol::AAPL,
             side: Side::Sell,
@@ -499,7 +572,8 @@ mod tests {
         assert!(!result.is_err());
         assert_orders(
             vec![LimitOrder {
-                id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                id: u128::parse_str("00000000-0000-0000-0000-000000000001")
+                    .unwrap(),
                 amount: 10,
                 symbol: Symbol::AAPL,
                 side: Side::Buy,
@@ -510,7 +584,8 @@ mod tests {
         // Only the 4 should be left in the book
         assert_order_book(
             vec![VecDeque::from(vec![LimitOrder {
-                id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                id: u128::parse_str("00000000-0000-0000-0000-000000000010")
+                    .unwrap(),
                 amount: 10,
                 symbol: Symbol::AAPL,
                 side: Side::Buy,
@@ -530,35 +605,50 @@ mod tests {
             Side::Buy,
             vec![
                 LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000010",
+                    )
+                    .unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 4,
                 },
                 LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000001",
+                    )
+                    .unwrap(),
                     amount: 11,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 5,
                 },
                 LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000002",
+                    )
+                    .unwrap(),
                     amount: 6,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 3,
                 },
                 LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000003").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000003",
+                    )
+                    .unwrap(),
                     amount: 6,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 7,
                 },
                 LimitOrder {
-                    id: u128::parse_str("00000000-0000-0000-0000-000000000004").unwrap(),
+                    id: u128::parse_str(
+                        "00000000-0000-0000-0000-000000000004",
+                    )
+                    .unwrap(),
                     amount: 3,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
@@ -571,7 +661,8 @@ mod tests {
         // This order should eat the whole book except for the last buy
         // which it splits.
         let result = buy_ob.fill_order_helper(LimitOrder {
-            id: u128::parse_str("00000000-0000-0000-0000-000000000005").unwrap(),
+            id: u128::parse_str("00000000-0000-0000-0000-000000000005")
+                .unwrap(),
             amount: 35,
             symbol: Symbol::AAPL,
             side: Side::Sell,
@@ -595,14 +686,16 @@ mod tests {
     fn test_average_price() {
         let orders = vec![
             LimitOrder {
-                id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                id: u128::parse_str("00000000-0000-0000-0000-000000000010")
+                    .unwrap(),
                 amount: 10,
                 symbol: Symbol::AAPL,
                 side: Side::Buy,
                 price: 4,
             },
             LimitOrder {
-                id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                id: u128::parse_str("00000000-0000-0000-0000-000000000001")
+                    .unwrap(),
                 amount: 11,
                 symbol: Symbol::AAPL,
                 side: Side::Buy,
@@ -612,5 +705,4 @@ mod tests {
         let ob = OrderBook::new(Side::Buy);
         assert_eq!(ob.average_price(orders), 4.523809523809524);
     }
-
 }

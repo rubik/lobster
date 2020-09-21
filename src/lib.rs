@@ -1,7 +1,7 @@
 mod error;
 mod models;
-mod ordermap;
 mod orderbook;
+mod ordermap;
 
-pub use models::{OrderEvent, OrderEventResult, FillMetadata};
+pub use models::{FillMetadata, OrderEvent, OrderEventResult};
 pub use orderbook::OrderBook;

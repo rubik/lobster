@@ -33,7 +33,7 @@ impl OrderMap {
                 let index = self.orders.len() - 1;
                 self.order_map.insert(id, index);
                 index
-            },
+            }
             Some(index) => {
                 let ord = &mut self.orders[index];
                 ord.id = id;
@@ -41,7 +41,7 @@ impl OrderMap {
                 ord.price = price;
                 self.order_map.insert(id, index);
                 index
-            },
+            }
         }
     }
 
