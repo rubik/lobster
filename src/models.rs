@@ -20,7 +20,7 @@ pub enum OrderEvent {
     Cancel(u128),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum OrderEventResult {
     Unfilled,
     PartiallyFilled(Vec<FillMetadata>),
@@ -29,7 +29,7 @@ pub enum OrderEventResult {
     Canceled(u128),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct FillMetadata {
     pub order_1: u128,
     pub order_2: u128,
