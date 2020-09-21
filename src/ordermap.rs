@@ -4,7 +4,7 @@ use std::ops::{Index, IndexMut};
 use crate::models::LimitOrder;
 
 #[derive(Debug)]
-pub(crate) struct OrderMap {
+pub struct OrderMap {
     orders: Vec<LimitOrder>,
     free: Vec<usize>,
     order_map: HashMap<u128, usize>,
