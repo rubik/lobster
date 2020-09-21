@@ -1,233 +1,255 @@
-use log::debug;
-use std::collections::VecDeque;
-use uuid::Uuid;
+use std::collections::{BTreeMap, VecDeque};
 
-#[derive(Debug, PartialEq)]
-pub enum Side {
-    Bid,
-    Ask,
-}
+use crate::models::{FillMetadata, OrderEvent, OrderEventResult, Side};
+use crate::ordermap::OrderMap;
 
 #[derive(Debug)]
-pub struct LimitOrder {
-    pub id: uuid::Uuid,
-    pub amount: u64,
-    pub price: u64,
-}
-
-#[derive(Debug)]
-pub struct FillResult {
-    pub avg_price: f64,
-}
-
 pub struct OrderBook {
-    book: BTreeMap<u64, VecDeque<LimitOrder>>,
-    cache: HashMap<uuid::Uuid, LimitOrder>,
+    min_ask: Option<u64>,
+    max_bid: Option<u64>,
+    asks: BTreeMap<u64, VecDeque<usize>>,
+    bids: BTreeMap<u64, VecDeque<usize>>,
+    orders: OrderMap,
 }
+
+const DEFAULT_MAP_SIZE: usize = 10_000;
+const DEFAULT_QUEUE_SIZE: usize = 10;
 
 impl OrderBook {
-    pub fn new(side: Side) -> Self {
+    pub fn new() -> Self {
         Self {
-            book: Vec::new(),
-            cache: HashMap::new(),
+            min_ask: None,
+            max_bid: None,
+            asks: BTreeMap::new(),
+            bids: BTreeMap::new(),
+            orders: OrderMap::new(DEFAULT_MAP_SIZE),
         }
     }
 
-    pub fn find_order(&self, u: uuid::Uuid) -> Option<(u64, usize)> {
-        if let Some(ref order) = self.cache.get(u) {
-            if let Some(ref queue) = self.book.get(order.price) {
-                for (i, &o) in queue.iter() {
-                    if o.id == u {
-                        return Some((order.price, i));
+    pub fn event(&mut self, event: OrderEvent) -> OrderEventResult {
+        match event {
+            OrderEvent::Market { id, side, qty } => {
+                let (fills, partial) = self.market(id, side, qty);
+                if fills.is_empty() {
+                    OrderEventResult::Unfilled
+                } else {
+                    match partial {
+                        false => OrderEventResult::Filled(fills),
+                        true => OrderEventResult::PartiallyFilled(fills),
                     }
                 }
-            } else {
-                // This is an inconsistent state and should not be reachable. In
-                // case everything goes wrong and we get here, we try to
-                // partially fix things by deleting this stale order from the
-                // cache.
-                self.cache.remove(u);
-            }
-        }
-        None
-    }
-
-    pub fn remove_order(&mut self, t: LimitOrder) -> Result<(), Box<std::error::Error>> {
-        let order_indices = self.find_order(t);
-        match order_indices {
-            None => Err("no such order"),
-            Some(queue_index, order_index) =>
-                match self.book[queue_index].remove(order_index) {
-                    None => Err("error removing"),
-                    Some(_) => Ok(()),
-                        if self.book[queue_index.unwrap()].len() == 0 {
-                            debug!("no more orders at price point {}", t.price);
-                            self.book.remove(queue_index.unwrap());
-                        }
-    }
-
-    pub fn add_order(&mut self, order: LimitOrder) -> Result<LimitOrder, &'static str> {
-        debug!("adding order {:?}", order);
-        // If we find an entry at that price point, add it to the queue
-        // Otherwise create a queue at that price point.
-        let mut queue_index = None;
-        let mut insert_index = None;
-
-        for (index, order_queue) in self.book.iter().enumerate() {
-            debug!("index {:?} order queue {:?}", index, order_queue);
-            if order_queue.front().unwrap().price == t.price {
-                queue_index = Some(index);
-                break;
-            } else if order_queue.front().unwrap().price < t.price && self.side == Side::Buy {
-                insert_index = Some(index);
-                break;
-            } else if order_queue.front().unwrap().price > t.price && self.side == Side::Sell {
-                insert_index = Some(index);
-                break;
-            }
-        }
-
-        match queue_index {
-            Some(queue_index) => {
-                // Existing orders at that price
-                self.book[queue_index].push_back(order);
-            }
-            None => {
-                // No existing orders at the price, create a new queue
-                let mut orders: VecDeque<LimitOrder> = VecDeque::new();
-                orders.push_back(order);
-                // Put the queue in the right place
-                match insert_index {
-                    Some(insert_index) => {
-                        // We know the spot to put this new queue
-                        self.book.insert(insert_index, orders);
-                    }
-                    None => {
-                        // Order book must be empty, just push the queue into the first spot
-                        self.book.push(orders);
+            },
+            OrderEvent::Limit {
+                id,
+                side,
+                qty,
+                price,
+            } => {
+                let (fills, partial) = self.limit(id, side, qty, price);
+                if fills.is_empty() {
+                    OrderEventResult::Placed(id)
+                } else {
+                    match partial {
+                        false => OrderEventResult::Filled(fills),
+                        true => OrderEventResult::PartiallyFilled(fills),
                     }
                 }
             }
-        };
-        Ok(order)
-    }
-
-    pub fn valid_price(&self, to_fill_price: u32, candidate_order_price: u32) -> bool {
-        if self.side == Side::Buy {
-            return to_fill_price <= candidate_order_price;
+            OrderEvent::Cancel(id) => {
+                self.cancel(id);
+                OrderEventResult::Canceled(id)
+            },
         }
-        return to_fill_price >= candidate_order_price;
     }
 
-    // Returns orders on the other side that were used to fill the order.
-    // Removes any orders that were used to fill from the book.
-    // If sum(orders returns) > to_fill, then the last order was only partially used to fill.
-    pub fn fill_order_helper(
+    fn cancel(&mut self, id: u128) -> bool {
+        self.orders.delete(&id)
+    }
+
+    fn market(&mut self, id: u128, side: Side, qty: u64) -> (Vec<FillMetadata>, bool) {
+        let mut partial = true;
+        let mut update_bid_ask = false;
+        let mut fills = Vec::new();
+        let mut remaining_qty = qty;
+
+        match side {
+            Side::Bid => {
+                for (ask_price, queue) in self.asks.iter_mut() {
+                    if update_bid_ask {
+                        self.min_ask = Some(*ask_price);
+                        update_bid_ask = false;
+                    }
+                    if remaining_qty == 0 {
+                        partial = false;
+                        break;
+                    }
+                    let (new_fills, filled_qty) = Self::process_queue(
+                        &mut self.orders,
+                        queue,
+                        remaining_qty,
+                        id,
+                    );
+                    if queue.is_empty() {
+                        update_bid_ask = true;
+                    }
+                    remaining_qty -= filled_qty;
+                    fills.extend(new_fills);
+                }
+            }
+            Side::Ask => {
+                for (bid_price, queue) in self.bids.iter_mut().rev() {
+                    if update_bid_ask {
+                        self.max_bid = Some(*bid_price);
+                        update_bid_ask = false;
+                    }
+                    if remaining_qty == 0 {
+                        partial = false;
+                        break;
+                    }
+                    let (new_fills, filled_qty) = Self::process_queue(
+                        &mut self.orders,
+                        queue,
+                        remaining_qty,
+                        id,
+                    );
+                    if queue.is_empty() {
+                        update_bid_ask = true;
+                    }
+                    remaining_qty -= filled_qty;
+                    fills.extend(new_fills);
+                }
+            }
+        }
+
+        (fills, partial)
+    }
+
+    fn limit(
         &mut self,
-        to_fill: LimitOrder,
-    ) -> Result<Vec<LimitOrder>, &'static str> {
-        if to_fill.side == Side::Buy && self.side != Side::Sell {
-            return Err("cannot fill buy order with sell book");
-        }
-        if to_fill.side == Side::Sell && self.side != Side::Buy {
-            return Err("cannot fill sell order with buy  book");
-        }
+        id: u128,
+        side: Side,
+        qty: u64,
+        price: u64,
+    ) -> (Vec<FillMetadata>, bool) {
+        let mut partial = true;
+        let mut update_bid_ask = false;
+        let mut fills: Vec<FillMetadata> = Vec::new();
+        let mut remaining_qty: u64 = qty;
 
-        debug!("orderbook size {}", self.book.len());
-        if self.book.len() == 0 {
-            return Err(ERR_CANT_FILL_SIZE);
-        }
-
-        // If the current price is no good break
-        if !self.valid_price(to_fill.price, self.book[0].front().unwrap().price) {
-            debug!("nothing available in book at valid price");
-            return Err(ERR_CANT_FILL_PRICE);
-        }
-
-        let mut remaining: i32 = to_fill.amount as i32;
-        let mut orders = Vec::new();
-
-        // Drain each queue one by one as needed
-        while self.valid_price(to_fill.price, self.book[0].front().unwrap().price) {
-            let order = self.book[0].pop_front();
-            match order {
-                Some(order) => {
-                    orders.push(order);
-                    debug!("selecting order {:?}", order);
-                    remaining = remaining - order.amount as i32;
+        match side {
+            Side::Bid => {
+                for (ask_price, queue) in self.asks.iter_mut() {
+                    if update_bid_ask {
+                        self.min_ask = Some(*ask_price);
+                        update_bid_ask = false;
+                    }
+                    if remaining_qty == 0 || price < *ask_price {
+                        partial = false;
+                        break;
+                    }
+                    let (new_fills, filled_qty) = Self::process_queue(
+                        &mut self.orders,
+                        queue,
+                        remaining_qty,
+                        id,
+                    );
+                    if queue.is_empty() {
+                        update_bid_ask = true;
+                    }
+                    remaining_qty -= filled_qty;
+                    fills.extend(new_fills);
                 }
-                None => {
-                    debug!("drained the whole queue at current price, moving to next price");
+                if remaining_qty > 0 {
+                    let index: usize = self.orders.insert(id, price, qty);
+                    self.bids
+                        .entry(price)
+                        .or_insert_with(|| VecDeque::with_capacity(DEFAULT_QUEUE_SIZE))
+                        .push_back(index);
                 }
             }
-            if self.book[0].len() == 0 {
-                self.book.remove(0);
+            Side::Ask => {
+                for (bid_price, queue) in self.bids.iter_mut() {
+                    if update_bid_ask {
+                        self.max_bid = Some(*bid_price);
+                        update_bid_ask = false;
+                    }
+                    if remaining_qty == 0 || price > *bid_price {
+                        partial = false;
+                        break;
+                    }
+                    let (new_fills, filled_qty) = Self::process_queue(
+                        &mut self.orders,
+                        queue,
+                        remaining_qty,
+                        id,
+                    );
+                    if queue.is_empty() {
+                        update_bid_ask = true;
+                    }
+                    remaining_qty -= filled_qty;
+                    fills.extend(new_fills);
+                }
+                if remaining_qty > 0 {
+                    let index: usize = self.orders.insert(id, price, qty);
+                    self.asks
+                        .entry(price)
+                        .or_insert_with(|| VecDeque::with_capacity(DEFAULT_QUEUE_SIZE))
+                        .push_back(index);
+                }
             }
-            if remaining <= 0 {
-                debug!("filled the order");
+        }
+
+        (fills, partial)
+    }
+
+    fn process_queue(
+        orders: &mut OrderMap,
+        opposite_orders: &mut VecDeque<usize>,
+        quantity_still_to_trade: u64,
+        id: u128,
+    ) -> (Vec<FillMetadata>, u64) {
+        let mut fills: Vec<FillMetadata> = Vec::new();
+        let mut qty_to_fill = quantity_still_to_trade;
+        let mut filled_qty = 0;
+        let mut filled_index = None;
+
+        for (index, head_order_idx) in opposite_orders.iter_mut().enumerate() {
+            if qty_to_fill == 0 {
                 break;
             }
-            if self.book.len() == 0 {
-                debug!("drained the whole book without filling the order");
-                // Add all the order back if we fail to fill
-                for &i in orders.iter() {
-                    let result = self.add_order(i);
-                    if result.is_err() {
-                        panic!(result);
-                    }
-                }
-                return Err(ERR_CANT_FILL_SIZE);
+            let head_order = &mut orders[*head_order_idx];
+            let traded_price = head_order.price;
+            let available_qty = head_order.qty;
+            if available_qty == 0 {
+                filled_index = Some(index);
+                continue;
             }
+            let traded_quantity: u64;
+
+            if qty_to_fill >= available_qty {
+                traded_quantity = available_qty;
+                qty_to_fill -= available_qty;
+                filled_index = Some(index);
+            } else {
+                traded_quantity = qty_to_fill;
+                qty_to_fill = 0u64;
+            }
+            head_order.qty -= traded_quantity;
+            let fill: FillMetadata;
+            fill = FillMetadata {
+                order_1: id,
+                order_2: head_order.id,
+                qty: traded_quantity,
+                price: traded_price,
+            };
+            fills.push(fill);
+            filled_qty += traded_quantity;
+        }
+        if let Some(index) = filled_index {
+            opposite_orders.drain(0..index + 1);
         }
 
-        if remaining > 0 {
-            return Err(ERR_CANT_FILL_PRICE);
-        }
-
-        if remaining == 0 {
-            // Exact fill
-            return Ok(orders);
-        }
-
-        // We have some set of orders which covers the requested amount, but not exactly.
-        // Add a new order which is this leftover to the book.
-        let last_order = orders[orders.len() - 1];
-        self.add_order(LimitOrder {
-            id: last_order.id,
-            price: last_order.price,
-            side: last_order.side,
-            amount: remaining.abs() as u32,
-            symbol: last_order.symbol,
-        });
-        return Ok(orders);
-    }
-
-    pub fn average_price(&self, orders: Vec<LimitOrder>) -> f64 {
-        let total_shares = orders.iter().fold(0, |sum, order| sum + order.amount);
-        orders
-            .iter()
-            .fold(0, |sum, order| sum + order.price * order.amount) as f64
-            / total_shares as f64
-    }
-
-    pub fn fill_order(&mut self, to_fill: LimitOrder) -> Result<FillResult, &'static str> {
-        let orders_used = self.fill_order_helper(to_fill)?;
-        let extra = orders_used.iter().fold(0, |sum, order| sum + order.amount) - to_fill.amount;
-        if extra > 0 {
-            // If the orders used is > then the desired fill, we had to split an order.
-            // Include the appropriate portion of the split order in the average price calculation.
-            let (orders_used, extra_order) = orders_used.split_at(orders_used.len() - 1);
-            let mut orders_used = orders_used.clone().to_vec();
-            let mut extra_order = extra_order[0].clone();
-            extra_order.amount = extra;
-            orders_used.push(extra_order);
-            return Ok(FillResult {
-                avg_price: self.average_price(orders_used),
-            });
-        }
-        Ok(FillResult {
-            avg_price: self.average_price(orders_used),
-        })
+        (fills, filled_qty)
     }
 }
 
@@ -235,7 +257,7 @@ impl OrderBook {
 mod tests {
     use crate::order_book::{FillResult, LimitOrder, OrderBook, Side, Symbol};
     use crate::VecDeque;
-    use uuid::Uuid;
+    use u128::u128;
 
     fn assert_order(expected: &LimitOrder, actual: &LimitOrder) {
         assert_eq!(expected.amount, actual.amount);
@@ -286,21 +308,21 @@ mod tests {
             // Single add remove
             TestCase {
                 add: vec![LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 5,
                 }],
                 expected_after_add: vec![VecDeque::from(vec![LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 5,
                 }])],
                 remove: vec![LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
@@ -312,14 +334,14 @@ mod tests {
             TestCase {
                 add: vec![
                     LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 5,
                     },
                     LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -328,14 +350,14 @@ mod tests {
                 ],
                 expected_after_add: vec![VecDeque::from(vec![
                     LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 5,
                     },
                     LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -343,14 +365,14 @@ mod tests {
                     },
                 ])],
                 remove: vec![LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 5,
                 }],
                 expected_after_remove: vec![VecDeque::from(vec![LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
@@ -361,14 +383,14 @@ mod tests {
             TestCase {
                 add: vec![
                     LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 4,
                     },
                     LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -377,14 +399,14 @@ mod tests {
                 ],
                 expected_after_add: vec![
                     VecDeque::from(vec![LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 5,
                     }]),
                     VecDeque::from(vec![LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -394,14 +416,14 @@ mod tests {
                 remove: Vec::new(),
                 expected_after_remove: vec![
                     VecDeque::from(vec![LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
                         price: 5,
                     }]),
                     VecDeque::from(vec![LimitOrder {
-                        id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                        id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                         amount: 10,
                         symbol: Symbol::AAPL,
                         side: Side::Buy,
@@ -440,14 +462,14 @@ mod tests {
             Side::Buy,
             vec![
                 LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 4,
                 },
                 LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
@@ -457,7 +479,7 @@ mod tests {
         );
 
         let result = buy_ob.fill_order_helper(LimitOrder {
-            id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+            id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
             amount: 10,
             symbol: Symbol::AAPL,
             side: Side::Buy,
@@ -468,7 +490,7 @@ mod tests {
 
         // Sell for 3, should take any bids >= 3, best price first
         let result = buy_ob.fill_order_helper(LimitOrder {
-            id: Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
+            id: u128::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
             amount: 10,
             symbol: Symbol::AAPL,
             side: Side::Sell,
@@ -477,7 +499,7 @@ mod tests {
         assert!(!result.is_err());
         assert_orders(
             vec![LimitOrder {
-                id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                 amount: 10,
                 symbol: Symbol::AAPL,
                 side: Side::Buy,
@@ -488,7 +510,7 @@ mod tests {
         // Only the 4 should be left in the book
         assert_order_book(
             vec![VecDeque::from(vec![LimitOrder {
-                id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                 amount: 10,
                 symbol: Symbol::AAPL,
                 side: Side::Buy,
@@ -508,35 +530,35 @@ mod tests {
             Side::Buy,
             vec![
                 LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                     amount: 10,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 4,
                 },
                 LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                     amount: 11,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 5,
                 },
                 LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000002").unwrap(),
                     amount: 6,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 3,
                 },
                 LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000003").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000003").unwrap(),
                     amount: 6,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
                     price: 7,
                 },
                 LimitOrder {
-                    id: Uuid::parse_str("00000000-0000-0000-0000-000000000004").unwrap(),
+                    id: u128::parse_str("00000000-0000-0000-0000-000000000004").unwrap(),
                     amount: 3,
                     symbol: Symbol::AAPL,
                     side: Side::Buy,
@@ -549,7 +571,7 @@ mod tests {
         // This order should eat the whole book except for the last buy
         // which it splits.
         let result = buy_ob.fill_order_helper(LimitOrder {
-            id: Uuid::parse_str("00000000-0000-0000-0000-000000000005").unwrap(),
+            id: u128::parse_str("00000000-0000-0000-0000-000000000005").unwrap(),
             amount: 35,
             symbol: Symbol::AAPL,
             side: Side::Sell,
@@ -559,7 +581,7 @@ mod tests {
         // We ate 35 shares of the total 36 on the book.
         assert_order_book(
             vec![VecDeque::from(vec![LimitOrder {
-                id: Uuid::nil(),
+                id: u128::nil(),
                 amount: 1,
                 symbol: Symbol::AAPL,
                 side: Side::Buy,
@@ -573,14 +595,14 @@ mod tests {
     fn test_average_price() {
         let orders = vec![
             LimitOrder {
-                id: Uuid::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
+                id: u128::parse_str("00000000-0000-0000-0000-000000000010").unwrap(),
                 amount: 10,
                 symbol: Symbol::AAPL,
                 side: Side::Buy,
                 price: 4,
             },
             LimitOrder {
-                id: Uuid::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
+                id: u128::parse_str("00000000-0000-0000-0000-000000000001").unwrap(),
                 amount: 11,
                 symbol: Symbol::AAPL,
                 side: Side::Buy,
