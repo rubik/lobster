@@ -42,13 +42,15 @@ impl OrderBook {
     pub fn event(&mut self, event: OrderEvent) -> OrderEventResult {
         match event {
             OrderEvent::Market { id, side, qty } => {
-                let (fills, partial) = self.market(id, side, qty);
+                let (fills, partial, filled_qty) = self.market(id, side, qty);
                 if fills.is_empty() {
                     OrderEventResult::Unfilled
                 } else {
                     match partial {
-                        false => OrderEventResult::Filled(fills),
-                        true => OrderEventResult::PartiallyFilled(fills),
+                        false => OrderEventResult::Filled(filled_qty, fills),
+                        true => OrderEventResult::PartiallyFilled(
+                            filled_qty, fills,
+                        ),
                     }
                 }
             }
@@ -58,13 +60,16 @@ impl OrderBook {
                 qty,
                 price,
             } => {
-                let (fills, partial) = self.limit(id, side, qty, price);
+                let (fills, partial, filled_qty) =
+                    self.limit(id, side, qty, price);
                 if fills.is_empty() {
                     OrderEventResult::Placed(id)
                 } else {
                     match partial {
-                        false => OrderEventResult::Filled(fills),
-                        true => OrderEventResult::PartiallyFilled(fills),
+                        false => OrderEventResult::Filled(filled_qty, fills),
+                        true => OrderEventResult::PartiallyFilled(
+                            filled_qty, fills,
+                        ),
                     }
                 }
             }
@@ -84,62 +89,29 @@ impl OrderBook {
         id: u128,
         side: Side,
         qty: u64,
-    ) -> (Vec<FillMetadata>, bool) {
+    ) -> (Vec<FillMetadata>, bool, u64) {
         let mut partial = true;
-        let mut update_bid_ask = false;
+        let remaining_qty;
         let mut fills = Vec::new();
-        let mut remaining_qty = qty;
 
         match side {
             Side::Bid => {
-                for (ask_price, queue) in self.asks.iter_mut() {
-                    if update_bid_ask {
-                        self.min_ask = Some(*ask_price);
-                        update_bid_ask = false;
-                    }
-                    if remaining_qty == 0 {
-                        partial = false;
-                        break;
-                    }
-                    let (new_fills, filled_qty) = Self::process_queue(
-                        &mut self.orders,
-                        queue,
-                        remaining_qty,
-                        id,
-                    );
-                    if queue.is_empty() {
-                        update_bid_ask = true;
-                    }
-                    remaining_qty -= filled_qty;
-                    fills.extend(new_fills);
+                remaining_qty =
+                    self.match_with_asks(id, qty, &mut fills, None);
+                if remaining_qty > 0 {
+                    partial = true;
                 }
             }
             Side::Ask => {
-                for (bid_price, queue) in self.bids.iter_mut().rev() {
-                    if update_bid_ask {
-                        self.max_bid = Some(*bid_price);
-                        update_bid_ask = false;
-                    }
-                    if remaining_qty == 0 {
-                        partial = false;
-                        break;
-                    }
-                    let (new_fills, filled_qty) = Self::process_queue(
-                        &mut self.orders,
-                        queue,
-                        remaining_qty,
-                        id,
-                    );
-                    if queue.is_empty() {
-                        update_bid_ask = true;
-                    }
-                    remaining_qty -= filled_qty;
-                    fills.extend(new_fills);
+                remaining_qty =
+                    self.match_with_bids(id, qty, &mut fills, None);
+                if remaining_qty > 0 {
+                    partial = true;
                 }
             }
         }
 
-        (fills, partial)
+        (fills, partial, qty - remaining_qty)
     }
 
     fn limit(
@@ -148,36 +120,17 @@ impl OrderBook {
         side: Side,
         qty: u64,
         price: u64,
-    ) -> (Vec<FillMetadata>, bool) {
-        let mut partial = true;
-        let mut update_bid_ask = false;
+    ) -> (Vec<FillMetadata>, bool, u64) {
+        let mut partial = false;
+        let remaining_qty;
         let mut fills: Vec<FillMetadata> = Vec::new();
-        let mut remaining_qty: u64 = qty;
 
         match side {
             Side::Bid => {
-                for (ask_price, queue) in self.asks.iter_mut() {
-                    if update_bid_ask || self.min_ask.is_none() {
-                        self.min_ask = Some(*ask_price);
-                        update_bid_ask = false;
-                    }
-                    if remaining_qty == 0 || price < *ask_price {
-                        partial = false;
-                        break;
-                    }
-                    let (new_fills, filled_qty) = Self::process_queue(
-                        &mut self.orders,
-                        queue,
-                        remaining_qty,
-                        id,
-                    );
-                    if queue.is_empty() {
-                        update_bid_ask = true;
-                    }
-                    remaining_qty -= filled_qty;
-                    fills.extend(new_fills);
-                }
+                remaining_qty =
+                    self.match_with_asks(id, qty, &mut fills, Some(price));
                 if remaining_qty > 0 {
+                    partial = true;
                     let index = self.orders.insert(id, price, qty);
                     match self.max_bid {
                         None => {
@@ -197,27 +150,8 @@ impl OrderBook {
                 }
             }
             Side::Ask => {
-                for (bid_price, queue) in self.bids.iter_mut() {
-                    if update_bid_ask || self.max_bid.is_none() {
-                        self.max_bid = Some(*bid_price);
-                        update_bid_ask = false;
-                    }
-                    if remaining_qty == 0 || price > *bid_price {
-                        partial = false;
-                        break;
-                    }
-                    let (new_fills, filled_qty) = Self::process_queue(
-                        &mut self.orders,
-                        queue,
-                        remaining_qty,
-                        id,
-                    );
-                    if queue.is_empty() {
-                        update_bid_ask = true;
-                    }
-                    remaining_qty -= filled_qty;
-                    fills.extend(new_fills);
-                }
+                remaining_qty =
+                    self.match_with_bids(id, qty, &mut fills, Some(price));
                 if remaining_qty > 0 {
                     let index = self.orders.insert(id, price, qty);
                     if let Some(a) = self.min_ask {
@@ -244,7 +178,82 @@ impl OrderBook {
             }
         }
 
-        (fills, partial)
+        (fills, partial, qty - remaining_qty)
+    }
+
+    fn match_with_asks(
+        &mut self,
+        id: u128,
+        qty: u64,
+        fills: &mut Vec<FillMetadata>,
+        limit_price: Option<u64>,
+    ) -> u64 {
+        let mut remaining_qty = qty;
+        let mut update_bid_ask = false;
+        for (ask_price, queue) in self.asks.iter_mut() {
+            if update_bid_ask || self.min_ask.is_none() {
+                self.min_ask = Some(*ask_price);
+                update_bid_ask = false;
+            }
+            if let Some(lp) = limit_price {
+                if lp < *ask_price {
+                    break;
+                }
+            }
+            if remaining_qty == 0 {
+                break;
+            }
+            let (new_fills, filled_qty) = Self::process_queue(
+                &mut self.orders,
+                queue,
+                remaining_qty,
+                id,
+            );
+            if queue.is_empty() {
+                update_bid_ask = true;
+            }
+            remaining_qty -= filled_qty;
+            fills.extend(new_fills);
+        }
+
+        remaining_qty
+    }
+
+    fn match_with_bids(
+        &mut self,
+        id: u128,
+        qty: u64,
+        fills: &mut Vec<FillMetadata>,
+        limit_price: Option<u64>,
+    ) -> u64 {
+        let mut remaining_qty = qty;
+        let mut update_bid_ask = false;
+        for (bid_price, queue) in self.bids.iter_mut() {
+            if update_bid_ask || self.max_bid.is_none() {
+                self.max_bid = Some(*bid_price);
+                update_bid_ask = false;
+            }
+            if let Some(lp) = limit_price {
+                if lp > *bid_price {
+                    break;
+                }
+            }
+            if remaining_qty == 0 {
+                break;
+            }
+            let (new_fills, filled_qty) = Self::process_queue(
+                &mut self.orders,
+                queue,
+                remaining_qty,
+                id,
+            );
+            if queue.is_empty() {
+                update_bid_ask = true;
+            }
+            remaining_qty -= filled_qty;
+            fills.extend(new_fills);
+        }
+        remaining_qty
     }
 
     fn process_queue(
@@ -443,7 +452,7 @@ mod tests {
 
     #[test]
     fn crossing_limit_order_partial() {
-        let (ob, results) = init_ob(vec![
+        let (mut ob, results) = init_ob(vec![
             OrderEvent::Limit {
                 id: 0,
                 side: Side::Bid,

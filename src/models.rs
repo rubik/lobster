@@ -23,8 +23,8 @@ pub enum OrderEvent {
 #[derive(Debug, PartialEq)]
 pub enum OrderEventResult {
     Unfilled,
-    PartiallyFilled(Vec<FillMetadata>),
-    Filled(Vec<FillMetadata>),
+    PartiallyFilled(u64, Vec<FillMetadata>),
+    Filled(u64, Vec<FillMetadata>),
     Placed(u128),
     Canceled(u128),
 }
