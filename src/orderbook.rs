@@ -306,7 +306,7 @@ impl OrderBook {
 
 #[cfg(test)]
 mod tests {
-    use crate::models::{OrderAction, OrderEvent, Side};
+    use crate::models::{FillMetadata, OrderAction, OrderEvent, Side};
     use crate::orderbook::{OrderBook, DEFAULT_QUEUE_SIZE};
     use std::collections::{BTreeMap, VecDeque};
 
@@ -325,6 +325,17 @@ mod tests {
             bk.entry(p)
                 .or_insert_with(|| VecDeque::with_capacity(DEFAULT_QUEUE_SIZE))
                 .push_back(i);
+        }
+        bk
+    }
+
+    fn init_book_holes(
+        orders: Vec<(u64, usize)>,
+        holes: Vec<u64>,
+    ) -> BTreeMap<u64, VecDeque<usize>> {
+        let mut bk = init_book(orders);
+        for h in holes {
+            bk.insert(h, VecDeque::new());
         }
         bk
     }
@@ -426,7 +437,7 @@ mod tests {
                 price: 399,
             },
             OrderAction::Limit {
-                id: 1,
+                id: 2,
                 side: Side::Bid,
                 qty: 2,
                 price: 398,
@@ -437,7 +448,7 @@ mod tests {
             vec![
                 OrderEvent::Placed(0),
                 OrderEvent::Placed(1),
-                OrderEvent::Placed(1)
+                OrderEvent::Placed(2)
             ]
         );
         assert_eq!(ob.min_ask, Some(399));
@@ -463,7 +474,7 @@ mod tests {
                 price: 399,
             },
             OrderAction::Limit {
-                id: 1,
+                id: 2,
                 side: Side::Bid,
                 qty: 2,
                 price: 398,
@@ -481,14 +492,137 @@ mod tests {
             vec![
                 OrderEvent::Placed(0),
                 OrderEvent::Placed(1),
-                OrderEvent::Placed(1)
+                OrderEvent::Placed(2)
             ]
         );
-        assert_eq!(result, OrderEvent::Placed(3));
+        assert_eq!(
+            result,
+            OrderEvent::Filled(
+                1,
+                vec![FillMetadata {
+                    order_1: 3,
+                    order_2: 2,
+                    qty: 1,
+                    price: 398
+                }]
+            )
+        );
         assert_eq!(ob.min_ask, Some(399));
         assert_eq!(ob.max_bid, Some(398));
         assert_eq!(ob.asks, init_book(vec![(399, 9998)]));
         assert_eq!(ob.bids, init_book(vec![(398, 9997), (395, 9999)]));
         assert_eq!(ob.spread(), Some(1));
+    }
+
+    #[test]
+    fn crossing_limit_order_matching() {
+        let (mut ob, results) = init_ob(vec![
+            OrderAction::Limit {
+                id: 0,
+                side: Side::Bid,
+                qty: 12,
+                price: 395,
+            },
+            OrderAction::Limit {
+                id: 1,
+                side: Side::Ask,
+                qty: 2,
+                price: 399,
+            },
+            OrderAction::Limit {
+                id: 2,
+                side: Side::Bid,
+                qty: 2,
+                price: 398,
+            },
+        ]);
+        let result = ob.event(OrderAction::Limit {
+            id: 3,
+            side: Side::Ask,
+            qty: 2,
+            price: 397,
+        });
+
+        assert_eq!(
+            results,
+            vec![
+                OrderEvent::Placed(0),
+                OrderEvent::Placed(1),
+                OrderEvent::Placed(2)
+            ]
+        );
+        assert_eq!(
+            result,
+            OrderEvent::Filled(
+                2,
+                vec![FillMetadata {
+                    order_1: 3,
+                    order_2: 2,
+                    qty: 2,
+                    price: 398
+                }]
+            )
+        );
+        assert_eq!(ob.min_ask, Some(399));
+        assert_eq!(ob.max_bid, Some(395));
+        assert_eq!(ob.asks, init_book(vec![(399, 9998)]));
+        assert_eq!(ob.bids, init_book_holes(vec![(395, 9999)], vec![398]));
+        assert_eq!(ob.spread(), Some(4));
+    }
+
+    #[test]
+    fn crossing_limit_order_over() {
+        let (mut ob, results) = init_ob(vec![
+            OrderAction::Limit {
+                id: 0,
+                side: Side::Bid,
+                qty: 12,
+                price: 395,
+            },
+            OrderAction::Limit {
+                id: 1,
+                side: Side::Ask,
+                qty: 2,
+                price: 399,
+            },
+            OrderAction::Limit {
+                id: 2,
+                side: Side::Bid,
+                qty: 2,
+                price: 398,
+            },
+        ]);
+        let result = ob.event(OrderAction::Limit {
+            id: 3,
+            side: Side::Ask,
+            qty: 5,
+            price: 397,
+        });
+
+        assert_eq!(
+            results,
+            vec![
+                OrderEvent::Placed(0),
+                OrderEvent::Placed(1),
+                OrderEvent::Placed(2)
+            ]
+        );
+        assert_eq!(
+            result,
+            OrderEvent::PartiallyFilled(
+                2,
+                vec![FillMetadata {
+                    order_1: 3,
+                    order_2: 2,
+                    qty: 2,
+                    price: 398
+                }]
+            )
+        );
+        assert_eq!(ob.min_ask, Some(397));
+        assert_eq!(ob.max_bid, Some(395));
+        assert_eq!(ob.asks, init_book(vec![(399, 9998), (397, 9996)]));
+        assert_eq!(ob.bids, init_book_holes(vec![(395, 9999)], vec![398]));
+        assert_eq!(ob.spread(), Some(2));
     }
 }
