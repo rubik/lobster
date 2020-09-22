@@ -5,7 +5,7 @@ pub enum Side {
 }
 
 #[derive(Debug)]
-pub enum OrderAction {
+pub enum OrderType {
     Market {
         id: u128,
         side: Side,

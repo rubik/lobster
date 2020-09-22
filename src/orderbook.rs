@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use crate::models::{FillMetadata, OrderAction, OrderEvent, Side};
+use crate::models::{FillMetadata, OrderEvent, OrderType, Side};
 use crate::ordermap::OrderMap;
 
 const DEFAULT_MAP_SIZE: usize = 10_000;
@@ -39,9 +39,9 @@ impl OrderBook {
         }
     }
 
-    pub fn event(&mut self, event: OrderAction) -> OrderEvent {
+    pub fn event(&mut self, event: OrderType) -> OrderEvent {
         match event {
-            OrderAction::Market { id, side, qty } => {
+            OrderType::Market { id, side, qty } => {
                 let (fills, partial, filled_qty) = self.market(id, side, qty);
                 if fills.is_empty() {
                     OrderEvent::Unfilled
@@ -52,7 +52,7 @@ impl OrderBook {
                     }
                 }
             }
-            OrderAction::Limit {
+            OrderType::Limit {
                 id,
                 side,
                 qty,
@@ -69,7 +69,7 @@ impl OrderBook {
                     }
                 }
             }
-            OrderAction::Cancel(id) => {
+            OrderType::Cancel(id) => {
                 self.cancel(id);
                 OrderEvent::Canceled(id)
             }

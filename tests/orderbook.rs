@@ -1,9 +1,9 @@
-use lobster::{FillMetadata, OrderAction, OrderBook, OrderEvent, Side};
+use lobster::{FillMetadata, OrderType, OrderBook, OrderEvent, Side};
 use std::collections::{BTreeMap, VecDeque};
 
 const DEFAULT_QUEUE_SIZE: usize = 10;
 
-fn init_ob(events: Vec<OrderAction>) -> (OrderBook, Vec<OrderEvent>) {
+fn init_ob(events: Vec<OrderType>) -> (OrderBook, Vec<OrderEvent>) {
     let mut ob = OrderBook::default();
     let mut results = Vec::new();
     for e in events {
@@ -46,7 +46,7 @@ fn empty_book() {
 
 #[test]
 fn one_resting_order() {
-    let (ob, results) = init_ob(vec![OrderAction::Limit {
+    let (ob, results) = init_ob(vec![OrderType::Limit {
         id: 0,
         side: Side::Bid,
         qty: 12,
@@ -63,13 +63,13 @@ fn one_resting_order() {
 #[test]
 fn two_resting_orders() {
     let (ob, results) = init_ob(vec![
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 0,
             side: Side::Bid,
             qty: 12,
             price: 395,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 1,
             side: Side::Ask,
             qty: 2,
@@ -90,13 +90,13 @@ fn two_resting_orders() {
 #[test]
 fn two_resting_orders_stacked() {
     let (ob, results) = init_ob(vec![
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 0,
             side: Side::Bid,
             qty: 12,
             price: 395,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 1,
             side: Side::Bid,
             qty: 2,
@@ -117,19 +117,19 @@ fn two_resting_orders_stacked() {
 #[test]
 fn three_resting_orders_stacked() {
     let (ob, results) = init_ob(vec![
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 0,
             side: Side::Bid,
             qty: 12,
             price: 395,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 1,
             side: Side::Ask,
             qty: 2,
             price: 399,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 2,
             side: Side::Bid,
             qty: 2,
@@ -154,26 +154,26 @@ fn three_resting_orders_stacked() {
 #[test]
 fn crossing_limit_order_partial() {
     let (mut ob, results) = init_ob(vec![
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 0,
             side: Side::Bid,
             qty: 12,
             price: 395,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 1,
             side: Side::Ask,
             qty: 2,
             price: 399,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 2,
             side: Side::Bid,
             qty: 2,
             price: 398,
         },
     ]);
-    let result = ob.event(OrderAction::Limit {
+    let result = ob.event(OrderType::Limit {
         id: 3,
         side: Side::Ask,
         qty: 1,
@@ -210,26 +210,26 @@ fn crossing_limit_order_partial() {
 #[test]
 fn crossing_limit_order_matching() {
     let (mut ob, results) = init_ob(vec![
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 0,
             side: Side::Bid,
             qty: 12,
             price: 395,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 1,
             side: Side::Ask,
             qty: 2,
             price: 399,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 2,
             side: Side::Bid,
             qty: 2,
             price: 398,
         },
     ]);
-    let result = ob.event(OrderAction::Limit {
+    let result = ob.event(OrderType::Limit {
         id: 3,
         side: Side::Ask,
         qty: 2,
@@ -266,26 +266,26 @@ fn crossing_limit_order_matching() {
 #[test]
 fn crossing_limit_order_over() {
     let (mut ob, results) = init_ob(vec![
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 0,
             side: Side::Bid,
             qty: 12,
             price: 395,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 1,
             side: Side::Ask,
             qty: 2,
             price: 399,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 2,
             side: Side::Bid,
             qty: 2,
             price: 398,
         },
     ]);
-    let result = ob.event(OrderAction::Limit {
+    let result = ob.event(OrderType::Limit {
         id: 3,
         side: Side::Ask,
         qty: 5,
@@ -322,7 +322,7 @@ fn crossing_limit_order_over() {
 #[test]
 fn market_order_unfilled() {
     let (mut ob, _) = init_ob(vec![]);
-    let result = ob.event(OrderAction::Market {
+    let result = ob.event(OrderType::Market {
         id: 0,
         side: Side::Ask,
         qty: 5,
@@ -334,26 +334,26 @@ fn market_order_unfilled() {
 #[test]
 fn market_order_partially_filled() {
     let (mut ob, results) = init_ob(vec![
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 0,
             side: Side::Bid,
             qty: 12,
             price: 395,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 1,
             side: Side::Ask,
             qty: 2,
             price: 399,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 2,
             side: Side::Bid,
             qty: 2,
             price: 398,
         },
     ]);
-    let result = ob.event(OrderAction::Market {
+    let result = ob.event(OrderType::Market {
         id: 3,
         side: Side::Ask,
         qty: 15,
@@ -395,26 +395,26 @@ fn market_order_partially_filled() {
 #[test]
 fn market_order_filled() {
     let (mut ob, results) = init_ob(vec![
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 0,
             side: Side::Bid,
             qty: 12,
             price: 395,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 1,
             side: Side::Ask,
             qty: 2,
             price: 399,
         },
-        OrderAction::Limit {
+        OrderType::Limit {
             id: 2,
             side: Side::Bid,
             qty: 2,
             price: 398,
         },
     ]);
-    let result = ob.event(OrderAction::Market {
+    let result = ob.event(OrderType::Market {
         id: 3,
         side: Side::Ask,
         qty: 7,
