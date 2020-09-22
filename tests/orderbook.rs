@@ -61,13 +61,14 @@ fn one_resting_order() {
             assert_eq!(ob.max_bid, Some(395));
             assert_eq!(ob.asks, BTreeMap::new());
             assert_eq!(ob.bids, init_book(vec![(395, 9999)]));
+            assert_eq!(ob.spread(), None);
         } else {
             assert_eq!(ob.min_ask, Some(395));
             assert_eq!(ob.max_bid, None);
             assert_eq!(ob.asks, init_book(vec![(395, 9999)]));
             assert_eq!(ob.bids, BTreeMap::new());
+            assert_eq!(ob.spread(), None);
         }
-        assert_eq!(ob.spread(), None);
     }
 }
 
@@ -771,6 +772,110 @@ fn market_order_filled() {
             assert_eq!(ob.min_ask, Some(395));
             assert_eq!(ob.max_bid, None);
             assert_eq!(ob.asks, init_book(vec![(395, 9999), (398, 9998)]));
+            assert_eq!(ob.bids, init_book(vec![]));
+            assert_eq!(ob.spread(), None);
+        }
+    }
+}
+
+#[test]
+fn cancel_non_existing_order() {
+    let (mut ob, _) = init_ob(vec![]);
+    let result = ob.event(OrderType::Cancel(0));
+    assert_eq!(result, OrderEvent::Canceled(0));
+    assert_eq!(ob.min_ask, None);
+    assert_eq!(ob.max_bid, None);
+    assert_eq!(ob.asks, BTreeMap::new());
+    assert_eq!(ob.bids, BTreeMap::new());
+    assert_eq!(ob.spread(), None);
+}
+
+#[test]
+fn cancel_resting_order() {
+    for (bid_ask, _) in &BID_ASK_COMBINATIONS {
+        let (mut ob, results) = init_ob(vec![OrderType::Limit {
+            id: 0,
+            side: *bid_ask,
+            qty: 12,
+            price: 395,
+        }]);
+        let result = ob.event(OrderType::Cancel(0));
+        assert_eq!(results, vec![OrderEvent::Placed(0)]);
+        assert_eq!(result, OrderEvent::Canceled(0));
+        assert_eq!(ob.min_ask, None);
+        assert_eq!(ob.max_bid, None);
+        if *bid_ask == Side::Bid {
+            assert_eq!(ob.asks, BTreeMap::new());
+            assert_eq!(ob.bids, init_book_holes(vec![], vec![395]));
+        } else {
+            assert_eq!(ob.asks, init_book_holes(vec![], vec![395]));
+            assert_eq!(ob.bids, BTreeMap::new());
+        }
+        assert_eq!(ob.spread(), None);
+    }
+}
+
+#[test]
+fn cancel_resting_order_of_many() {
+    for (bid_ask, ask_bid) in &BID_ASK_COMBINATIONS {
+        let (mut ob, results) = init_ob(vec![
+            OrderType::Limit {
+                id: 0,
+                side: *bid_ask,
+                qty: 12,
+                price: 395,
+            },
+            OrderType::Limit {
+                id: 1,
+                side: *ask_bid,
+                qty: 2,
+                price: 399,
+            },
+            OrderType::Limit {
+                id: 2,
+                side: *bid_ask,
+                qty: 2,
+                price: 398,
+            },
+        ]);
+        let result = ob.event(OrderType::Cancel(0));
+        if *bid_ask == Side::Bid {
+            assert_eq!(
+                results,
+                vec![
+                    OrderEvent::Placed(0),
+                    OrderEvent::Placed(1),
+                    OrderEvent::Placed(2)
+                ]
+            );
+            assert_eq!(result, OrderEvent::Canceled(0));
+            assert_eq!(ob.min_ask, Some(399));
+            assert_eq!(ob.max_bid, Some(398));
+            assert_eq!(ob.asks, init_book(vec![(399, 9998)]));
+            assert_eq!(ob.bids, init_book_holes(vec![(398, 9997)], vec![395]));
+            assert_eq!(ob.spread(), Some(1));
+        } else {
+            assert_eq!(
+                results,
+                vec![
+                    OrderEvent::Placed(0),
+                    OrderEvent::Filled {
+                        id: 1,
+                        filled_qty: 2,
+                        fills: vec![FillMetadata {
+                            order_1: 1,
+                            order_2: 0,
+                            qty: 2,
+                            price: 395,
+                        },],
+                    },
+                    OrderEvent::Placed(2)
+                ]
+            );
+            assert_eq!(result, OrderEvent::Canceled(0));
+            assert_eq!(ob.min_ask, Some(398));
+            assert_eq!(ob.max_bid, None);
+            assert_eq!(ob.asks, init_book_holes(vec![(398, 9998)], vec![395]));
             assert_eq!(ob.bids, init_book(vec![]));
             assert_eq!(ob.spread(), None);
         }
