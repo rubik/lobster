@@ -47,8 +47,16 @@ impl OrderBook {
                     OrderEvent::Unfilled
                 } else {
                     match partial {
-                        false => OrderEvent::Filled(filled_qty, fills),
-                        true => OrderEvent::PartiallyFilled(filled_qty, fills),
+                        false => OrderEvent::Filled {
+                            id,
+                            filled_qty,
+                            fills,
+                        },
+                        true => OrderEvent::PartiallyFilled {
+                            id,
+                            filled_qty,
+                            fills,
+                        },
                     }
                 }
             }
@@ -64,8 +72,16 @@ impl OrderBook {
                     OrderEvent::Placed(id)
                 } else {
                     match partial {
-                        false => OrderEvent::Filled(filled_qty, fills),
-                        true => OrderEvent::PartiallyFilled(filled_qty, fills),
+                        false => OrderEvent::Filled {
+                            id,
+                            filled_qty,
+                            fills,
+                        },
+                        true => OrderEvent::PartiallyFilled {
+                            id,
+                            filled_qty,
+                            fills,
+                        },
                     }
                 }
             }

@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Side {
     Bid,
     Ask,
@@ -23,8 +23,16 @@ pub enum OrderType {
 #[derive(Debug, PartialEq)]
 pub enum OrderEvent {
     Unfilled,
-    PartiallyFilled(u64, Vec<FillMetadata>),
-    Filled(u64, Vec<FillMetadata>),
+    PartiallyFilled {
+        id: u128,
+        filled_qty: u64,
+        fills: Vec<FillMetadata>,
+    },
+    Filled {
+        id: u128,
+        filled_qty: u64,
+        fills: Vec<FillMetadata>,
+    },
     Placed(u128),
     Canceled(u128),
 }
