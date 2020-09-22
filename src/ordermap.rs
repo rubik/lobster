@@ -26,6 +26,10 @@ impl OrderMap {
         list
     }
 
+    pub fn get(&self, id: u128) -> Option<(u64, usize)> {
+        self.order_map.get(&id).map(|i| (self.orders[*i].price, *i))
+    }
+
     pub fn insert(&mut self, id: u128, price: u64, qty: u64) -> usize {
         match self.free.pop() {
             None => {

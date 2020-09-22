@@ -93,6 +93,20 @@ impl OrderBook {
     }
 
     fn cancel(&mut self, id: u128) -> bool {
+        if let Some((price, idx)) = self.orders.get(id) {
+            if let Some(ref mut queue) = self.asks.get_mut(&price) {
+                if let Some(i) = queue.iter().position(|i| *i == idx) {
+                    queue.remove(i);
+                }
+                self.update_min_ask();
+            }
+            if let Some(ref mut queue) = self.bids.get_mut(&price) {
+                if let Some(i) = queue.iter().position(|i| *i == idx) {
+                    queue.remove(i);
+                }
+                self.update_max_bid();
+            }
+        }
         self.orders.delete(&id)
     }
 
@@ -223,11 +237,7 @@ impl OrderBook {
             fills.extend(new_fills);
         }
 
-        let mut cur_asks = self.asks.iter().filter(|(_, q)| !q.is_empty());
-        self.min_ask = match cur_asks.next() {
-            None => None,
-            Some((p, _)) => Some(*p),
-        };
+        self.update_min_ask();
 
         remaining_qty
     }
@@ -263,24 +273,37 @@ impl OrderBook {
             fills.extend(new_fills);
         }
 
+        self.update_max_bid();
+        remaining_qty
+    }
+
+    fn update_min_ask(&mut self) {
+        let mut cur_asks = self.asks.iter().filter(|(_, q)| !q.is_empty());
+        self.min_ask = match cur_asks.next() {
+            None => None,
+            Some((p, _)) => Some(*p),
+        };
+    }
+
+    fn update_max_bid(&mut self) {
         let mut cur_bids =
             self.bids.iter().rev().filter(|(_, q)| !q.is_empty());
         self.max_bid = match cur_bids.next() {
             None => None,
             Some((p, _)) => Some(*p),
         };
-
-        remaining_qty
     }
 
     fn process_queue(
         orders: &mut OrderMap,
         opposite_orders: &mut VecDeque<usize>,
-        quantity_still_to_trade: u64,
+        remaining_qty: u64,
         id: u128,
     ) -> (Vec<FillMetadata>, u64) {
+        // XXX: we don't need a new vector, we can get a mutable reference to
+        // the existing one
         let mut fills: Vec<FillMetadata> = Vec::new();
-        let mut qty_to_fill = quantity_still_to_trade;
+        let mut qty_to_fill = remaining_qty;
         let mut filled_qty = 0;
         let mut filled_index = None;
 
