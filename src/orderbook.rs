@@ -228,13 +228,17 @@ impl OrderBook {
             if remaining_qty == 0 {
                 break;
             }
-            let (new_fills, filled_qty) =
-                Self::process_queue(&mut self.orders, queue, remaining_qty, id);
+            let filled_qty = Self::process_queue(
+                &mut self.orders,
+                queue,
+                remaining_qty,
+                id,
+                fills,
+            );
             if queue.is_empty() {
                 update_bid_ask = true;
             }
             remaining_qty -= filled_qty;
-            fills.extend(new_fills);
         }
 
         self.update_min_ask();
@@ -264,13 +268,17 @@ impl OrderBook {
             if remaining_qty == 0 {
                 break;
             }
-            let (new_fills, filled_qty) =
-                Self::process_queue(&mut self.orders, queue, remaining_qty, id);
+            let filled_qty = Self::process_queue(
+                &mut self.orders,
+                queue,
+                remaining_qty,
+                id,
+                fills,
+            );
             if queue.is_empty() {
                 update_bid_ask = true;
             }
             remaining_qty -= filled_qty;
-            fills.extend(new_fills);
         }
 
         self.update_max_bid();
@@ -299,10 +307,8 @@ impl OrderBook {
         opposite_orders: &mut VecDeque<usize>,
         remaining_qty: u64,
         id: u128,
-    ) -> (Vec<FillMetadata>, u64) {
-        // XXX: we don't need a new vector, we can get a mutable reference to
-        // the existing one
-        let mut fills: Vec<FillMetadata> = Vec::new();
+        fills: &mut Vec<FillMetadata>,
+    ) -> u64 {
         let mut qty_to_fill = remaining_qty;
         let mut filled_qty = 0;
         let mut filled_index = None;
@@ -343,6 +349,6 @@ impl OrderBook {
             opposite_orders.drain(0..index + 1);
         }
 
-        (fills, filled_qty)
+        filled_qty
     }
 }
