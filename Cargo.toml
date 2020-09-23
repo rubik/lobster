@@ -11,3 +11,10 @@ repository = "https://github.com/rubik/lobster"
 keywords = ["orderbook", "order", "limit", "hft"]
 
 [dependencies]
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "simple"
+harness = false
