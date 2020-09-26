@@ -1,5 +1,5 @@
 use lobster::{FillMetadata, OrderBook, OrderEvent, OrderType, Side};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 
 const DEFAULT_QUEUE_SIZE: usize = 10;
 const BID_ASK_COMBINATIONS: [(Side, Side); 2] =
@@ -14,12 +14,12 @@ fn init_ob(events: Vec<OrderType>) -> (OrderBook, Vec<OrderEvent>) {
     (ob, results)
 }
 
-fn init_book(orders: Vec<(u64, usize)>) -> BTreeMap<u64, VecDeque<usize>> {
+fn init_book(orders: Vec<(u64, usize)>) -> BTreeMap<u64, Vec<usize>> {
     let mut bk = BTreeMap::new();
     for (p, i) in orders {
         bk.entry(p)
-            .or_insert_with(|| VecDeque::with_capacity(DEFAULT_QUEUE_SIZE))
-            .push_back(i);
+            .or_insert_with(|| Vec::with_capacity(DEFAULT_QUEUE_SIZE))
+            .push(i);
     }
     bk
 }
@@ -27,10 +27,10 @@ fn init_book(orders: Vec<(u64, usize)>) -> BTreeMap<u64, VecDeque<usize>> {
 fn init_book_holes(
     orders: Vec<(u64, usize)>,
     holes: Vec<u64>,
-) -> BTreeMap<u64, VecDeque<usize>> {
+) -> BTreeMap<u64, Vec<usize>> {
     let mut bk = init_book(orders);
     for h in holes {
-        bk.insert(h, VecDeque::new());
+        bk.insert(h, Vec::new());
     }
     bk
 }

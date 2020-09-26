@@ -1,7 +1,7 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 
-use crate::models::{FillMetadata, OrderEvent, OrderType, Side};
 use crate::arena::OrderArena;
+use crate::models::{FillMetadata, OrderEvent, OrderType, Side};
 
 const DEFAULT_MAP_SIZE: usize = 10_000;
 const DEFAULT_QUEUE_SIZE: usize = 10;
@@ -10,8 +10,8 @@ const DEFAULT_QUEUE_SIZE: usize = 10;
 pub struct OrderBook {
     pub min_ask: Option<u64>,
     pub max_bid: Option<u64>,
-    pub asks: BTreeMap<u64, VecDeque<usize>>,
-    pub bids: BTreeMap<u64, VecDeque<usize>>,
+    pub asks: BTreeMap<u64, Vec<usize>>,
+    pub bids: BTreeMap<u64, Vec<usize>>,
     pub arena: OrderArena,
 }
 
@@ -168,9 +168,9 @@ impl OrderBook {
                     self.bids
                         .entry(price)
                         .or_insert_with(|| {
-                            VecDeque::with_capacity(DEFAULT_QUEUE_SIZE)
+                            Vec::with_capacity(DEFAULT_QUEUE_SIZE)
                         })
-                        .push_back(index);
+                        .push(index);
                 }
             }
             Side::Ask => {
@@ -196,9 +196,9 @@ impl OrderBook {
                     self.asks
                         .entry(price)
                         .or_insert_with(|| {
-                            VecDeque::with_capacity(DEFAULT_QUEUE_SIZE)
+                            Vec::with_capacity(DEFAULT_QUEUE_SIZE)
                         })
-                        .push_back(index);
+                        .push(index);
                 }
             }
         }
@@ -304,7 +304,7 @@ impl OrderBook {
 
     fn process_queue(
         arena: &mut OrderArena,
-        opposite_orders: &mut VecDeque<usize>,
+        opposite_orders: &mut Vec<usize>,
         remaining_qty: u64,
         id: u128,
         fills: &mut Vec<FillMetadata>,
