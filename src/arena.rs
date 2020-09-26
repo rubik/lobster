@@ -4,13 +4,13 @@ use std::ops::{Index, IndexMut};
 use crate::models::LimitOrder;
 
 #[derive(Debug)]
-pub struct OrderMap {
+pub struct OrderArena {
     orders: Vec<LimitOrder>,
     free: Vec<usize>,
     order_map: HashMap<u128, usize>,
 }
 
-impl OrderMap {
+impl OrderArena {
     pub fn new(capacity: usize) -> Self {
         let mut list = Self {
             orders: Vec::with_capacity(capacity),
@@ -61,7 +61,7 @@ impl OrderMap {
     }
 }
 
-impl Index<usize> for OrderMap {
+impl Index<usize> for OrderArena {
     type Output = LimitOrder;
 
     #[inline]
@@ -70,7 +70,7 @@ impl Index<usize> for OrderMap {
     }
 }
 
-impl IndexMut<usize> for OrderMap {
+impl IndexMut<usize> for OrderArena {
     #[inline]
     fn index_mut(&mut self, index: usize) -> &mut LimitOrder {
         &mut self.orders[index]

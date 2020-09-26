@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, VecDeque};
 
 use crate::models::{FillMetadata, OrderEvent, OrderType, Side};
-use crate::ordermap::OrderMap;
+use crate::arena::OrderArena;
 
 const DEFAULT_MAP_SIZE: usize = 10_000;
 const DEFAULT_QUEUE_SIZE: usize = 10;
@@ -12,7 +12,7 @@ pub struct OrderBook {
     pub max_bid: Option<u64>,
     pub asks: BTreeMap<u64, VecDeque<usize>>,
     pub bids: BTreeMap<u64, VecDeque<usize>>,
-    orders: OrderMap,
+    pub arena: OrderArena,
 }
 
 impl Default for OrderBook {
@@ -28,7 +28,7 @@ impl OrderBook {
             max_bid: None,
             asks: BTreeMap::new(),
             bids: BTreeMap::new(),
-            orders: OrderMap::new(DEFAULT_MAP_SIZE),
+            arena: OrderArena::new(DEFAULT_MAP_SIZE),
         }
     }
 
@@ -93,7 +93,7 @@ impl OrderBook {
     }
 
     fn cancel(&mut self, id: u128) -> bool {
-        if let Some((price, idx)) = self.orders.get(id) {
+        if let Some((price, idx)) = self.arena.get(id) {
             if let Some(ref mut queue) = self.asks.get_mut(&price) {
                 if let Some(i) = queue.iter().position(|i| *i == idx) {
                     queue.remove(i);
@@ -107,7 +107,7 @@ impl OrderBook {
                 self.update_max_bid();
             }
         }
-        self.orders.delete(&id)
+        self.arena.delete(&id)
     }
 
     fn market(
@@ -155,7 +155,7 @@ impl OrderBook {
                     self.match_with_asks(id, qty, &mut fills, Some(price));
                 if remaining_qty > 0 {
                     partial = true;
-                    let index = self.orders.insert(id, price, remaining_qty);
+                    let index = self.arena.insert(id, price, remaining_qty);
                     match self.max_bid {
                         None => {
                             self.max_bid = Some(price);
@@ -178,7 +178,7 @@ impl OrderBook {
                     self.match_with_bids(id, qty, &mut fills, Some(price));
                 if remaining_qty > 0 {
                     partial = true;
-                    let index = self.orders.insert(id, price, remaining_qty);
+                    let index = self.arena.insert(id, price, remaining_qty);
                     if let Some(a) = self.min_ask {
                         if price < a {
                             self.min_ask = Some(price);
@@ -229,7 +229,7 @@ impl OrderBook {
                 break;
             }
             let filled_qty = Self::process_queue(
-                &mut self.orders,
+                &mut self.arena,
                 queue,
                 remaining_qty,
                 id,
@@ -269,7 +269,7 @@ impl OrderBook {
                 break;
             }
             let filled_qty = Self::process_queue(
-                &mut self.orders,
+                &mut self.arena,
                 queue,
                 remaining_qty,
                 id,
@@ -303,7 +303,7 @@ impl OrderBook {
     }
 
     fn process_queue(
-        orders: &mut OrderMap,
+        arena: &mut OrderArena,
         opposite_orders: &mut VecDeque<usize>,
         remaining_qty: u64,
         id: u128,
@@ -317,7 +317,7 @@ impl OrderBook {
             if qty_to_fill == 0 {
                 break;
             }
-            let head_order = &mut orders[*head_order_idx];
+            let head_order = &mut arena[*head_order_idx];
             let traded_price = head_order.price;
             let available_qty = head_order.qty;
             if available_qty == 0 {
@@ -332,7 +332,7 @@ impl OrderBook {
                 filled_index = Some(index);
             } else {
                 traded_quantity = qty_to_fill;
-                qty_to_fill = 0u64;
+                qty_to_fill = 0;
             }
             head_order.qty -= traded_quantity;
             let fill: FillMetadata;
