@@ -232,6 +232,9 @@ impl OrderBook {
         let mut remaining_qty = qty;
         let mut update_bid_ask = false;
         for (ask_price, queue) in self.asks.iter_mut() {
+            if queue.is_empty() {
+                continue;
+            }
             if (update_bid_ask || self.min_ask.is_none()) && !queue.is_empty() {
                 self.min_ask = Some(*ask_price);
                 update_bid_ask = false;
@@ -271,6 +274,9 @@ impl OrderBook {
         let mut remaining_qty = qty;
         let mut update_bid_ask = false;
         for (bid_price, queue) in self.bids.iter_mut().rev() {
+            if queue.is_empty() {
+                continue;
+            }
             if (update_bid_ask || self.max_bid.is_none()) && !queue.is_empty() {
                 self.max_bid = Some(*bid_price);
                 update_bid_ask = false;
