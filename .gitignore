@@ -1,2 +1,5 @@
 /target
 Cargo.lock
+*.out
+quantcup/score
+quantcup/test
