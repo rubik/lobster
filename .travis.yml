@@ -13,6 +13,9 @@ before_cache:
 matrix:
   include:
     - rust: stable
+      env: RUST_VERSION=stable COMMAND=bench
+
+    - rust: stable
       env: RUST_VERSION=stable COMMAND=test COV=yes
 
     - rust: beta

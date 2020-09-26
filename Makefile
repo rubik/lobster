@@ -5,3 +5,7 @@ test:
 .PHONY: f
 f:
 	rustfmt $(shell find src tests benches examples -name "*.rs" -type f)
+
+.PHONY: bench
+bench:
+	cargo bench
