@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use crate::arena::OrderArena;
 use crate::models::{FillMetadata, OrderEvent, OrderType, Side};
 
-const DEFAULT_MAP_SIZE: usize = 10_000;
-const DEFAULT_QUEUE_SIZE: usize = 10;
+const DEFAULT_ARENA_CAPACITY: usize = 10_000;
+const DEFAULT_QUEUE_CAPACITY: usize = 10;
 
 #[derive(Debug)]
 pub struct OrderBook {
@@ -13,22 +13,24 @@ pub struct OrderBook {
     pub asks: BTreeMap<u64, Vec<usize>>,
     pub bids: BTreeMap<u64, Vec<usize>>,
     pub arena: OrderArena,
+    default_queue_capacity: usize,
 }
 
 impl Default for OrderBook {
     fn default() -> Self {
-        Self::new()
+        Self::new(DEFAULT_ARENA_CAPACITY, DEFAULT_QUEUE_CAPACITY)
     }
 }
 
 impl OrderBook {
-    pub fn new() -> Self {
+    pub fn new(arena_capacity: usize, queue_capacity: usize) -> Self {
         Self {
             min_ask: None,
             max_bid: None,
             asks: BTreeMap::new(),
             bids: BTreeMap::new(),
-            arena: OrderArena::new(DEFAULT_MAP_SIZE),
+            arena: OrderArena::new(arena_capacity),
+            default_queue_capacity: queue_capacity,
         }
     }
 
@@ -165,12 +167,19 @@ impl OrderBook {
                         }
                         _ => {}
                     };
+                    let queue_capacity = self.default_queue_capacity;
                     self.bids
                         .entry(price)
-                        .or_insert_with(|| {
-                            Vec::with_capacity(DEFAULT_QUEUE_SIZE)
-                        })
+                        .or_insert_with(|| Vec::with_capacity(queue_capacity))
                         .push(index);
+                    match self.max_bid {
+                        None => self.max_bid = Some(price),
+                        Some(p) => {
+                            if p < price {
+                                self.max_bid = Some(price);
+                            }
+                        },
+                    };
                 }
             }
             Side::Ask => {
@@ -193,12 +202,19 @@ impl OrderBook {
                         }
                         _ => {}
                     };
+                    let queue_capacity = self.default_queue_capacity;
                     self.asks
                         .entry(price)
-                        .or_insert_with(|| {
-                            Vec::with_capacity(DEFAULT_QUEUE_SIZE)
-                        })
+                        .or_insert_with(|| Vec::with_capacity(queue_capacity))
                         .push(index);
+                    match self.min_ask {
+                        None => self.min_ask = Some(price),
+                        Some(p) => {
+                            if p > price {
+                                self.min_ask = Some(price);
+                            }
+                        },
+                    };
                 }
             }
         }
@@ -242,7 +258,6 @@ impl OrderBook {
         }
 
         self.update_min_ask();
-
         remaining_qty
     }
 
