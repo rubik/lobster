@@ -4,7 +4,7 @@ pub enum Side {
     Ask,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum OrderType {
     Market {
         id: u128,
@@ -20,7 +20,7 @@ pub enum OrderType {
     Cancel(u128),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum OrderEvent {
     Unfilled,
     PartiallyFilled {
@@ -37,7 +37,7 @@ pub enum OrderEvent {
     Canceled(u128),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FillMetadata {
     pub order_1: u128,
     pub order_2: u128,

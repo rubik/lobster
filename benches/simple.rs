@@ -1,4 +1,4 @@
-use criterion::{criterion_main, criterion_group, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use lobster::{OrderBook, OrderType, Side};
 
 fn small_limit_ladder(c: &mut Criterion) {
