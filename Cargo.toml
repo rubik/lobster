@@ -20,3 +20,7 @@ serde = { version = "1", features = ["derive"] }
 [[bench]]
 name = "simple"
 harness = false
+
+[[bench]]
+name = "quantcup"
+harness = false
