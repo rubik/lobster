@@ -3,3 +3,4 @@ Cargo.lock
 *.out
 quantcup/score
 quantcup/test
+*.gch
