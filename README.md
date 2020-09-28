@@ -41,14 +41,14 @@ The winning quantcup submission is at the moment about 11x faster than Lobster.
 While Lobster can surely be improved significantly, some design choices
 by necessity make it slower. Here's a non-exhaustive list:
 
-1. The Quantcup solution holds all the price points in memory, whereas Lobster
-  uses two BTreeMap structs. The performance boost of holding all the price
-  points in a contiguous data structure on the stack is massive, but it's not
-  very practical: the array is indexed by the price, so it can be huge
-  (imagine implementing an order book for forex markets with integer price
-  points at all non-fractional values); in reality limit orders can be made at
-  any price, and in most markets there is no upper bound, so the static array
-  solution is not viable.
+1. The Quantcup solution holds all the possible price points in memory, whereas
+   Lobster uses two BTreeMap structs that hold price points on demand. The
+   performance boost of holding all the price points in a contiguous data
+   structure on the stack is massive, but it's not very practical: the array is
+   indexed by the price, so it can be huge (imagine implementing an order book
+   for forex markets with integer price points at all non-fractional values);
+   in reality limit orders can be made at any price, and in most markets there
+   is no upper bound, so the static array solution is not viable.
 
 2. The Quantcup solution does not update the max bid/min ask values when
    canceling orders. So if an order at the best bid/ask is canceled, that
