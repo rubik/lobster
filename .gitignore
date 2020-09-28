@@ -4,3 +4,4 @@ Cargo.lock
 quantcup/score
 quantcup/test
 *.gch
+perf.data*
