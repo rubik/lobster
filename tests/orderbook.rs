@@ -9,7 +9,7 @@ fn init_ob(events: Vec<OrderType>) -> (OrderBook, Vec<OrderEvent>) {
     let mut ob = OrderBook::default();
     let mut results = Vec::new();
     for e in events {
-        results.push(ob.event(e));
+        results.push(ob.execute(e));
     }
     (ob, results)
 }
@@ -280,7 +280,7 @@ fn crossing_limit_order_partial() {
                 price: 398,
             },
         ]);
-        let result = ob.event(OrderType::Limit {
+        let result = ob.execute(OrderType::Limit {
             id: 3,
             side: *ask_bid,
             qty: 1,
@@ -377,7 +377,7 @@ fn crossing_limit_order_matching() {
                 price: 398,
             },
         ]);
-        let result = ob.event(OrderType::Limit {
+        let result = ob.execute(OrderType::Limit {
             id: 3,
             side: *ask_bid,
             qty: 2,
@@ -474,7 +474,7 @@ fn crossing_limit_order_over() {
                 price: 398,
             },
         ]);
-        let result = ob.event(OrderType::Limit {
+        let result = ob.execute(OrderType::Limit {
             id: 3,
             side: *ask_bid,
             qty: 5,
@@ -552,7 +552,7 @@ fn crossing_limit_order_over() {
 fn market_order_unfilled() {
     for (_, ask_bid) in &BID_ASK_COMBINATIONS {
         let (mut ob, _) = init_ob(vec![]);
-        let result = ob.event(OrderType::Market {
+        let result = ob.execute(OrderType::Market {
             id: 0,
             side: *ask_bid,
             qty: 5,
@@ -585,7 +585,7 @@ fn market_order_partially_filled() {
                 price: 398,
             },
         ]);
-        let result = ob.event(OrderType::Market {
+        let result = ob.execute(OrderType::Market {
             id: 3,
             side: *ask_bid,
             qty: 15,
@@ -697,7 +697,7 @@ fn market_order_filled() {
                 price: 398,
             },
         ]);
-        let result = ob.event(OrderType::Market {
+        let result = ob.execute(OrderType::Market {
             id: 3,
             side: *ask_bid,
             qty: 7,
@@ -781,7 +781,7 @@ fn market_order_filled() {
 #[test]
 fn cancel_non_existing_order() {
     let (mut ob, _) = init_ob(vec![]);
-    let result = ob.event(OrderType::Cancel(0));
+    let result = ob.execute(OrderType::Cancel(0));
     assert_eq!(result, OrderEvent::Canceled(0));
     assert_eq!(ob.min_ask, None);
     assert_eq!(ob.max_bid, None);
@@ -799,7 +799,7 @@ fn cancel_resting_order() {
             qty: 12,
             price: 395,
         }]);
-        let result = ob.event(OrderType::Cancel(0));
+        let result = ob.execute(OrderType::Cancel(0));
         assert_eq!(results, vec![OrderEvent::Placed(0)]);
         assert_eq!(result, OrderEvent::Canceled(0));
         assert_eq!(ob.min_ask, None);
@@ -838,7 +838,7 @@ fn cancel_resting_order_of_many() {
                 price: 398,
             },
         ]);
-        let result = ob.event(OrderType::Cancel(0));
+        let result = ob.execute(OrderType::Cancel(0));
         if *bid_ask == Side::Bid {
             assert_eq!(
                 results,

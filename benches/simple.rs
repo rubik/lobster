@@ -6,7 +6,7 @@ fn small_limit_ladder(c: &mut Criterion) {
         let mut ob = OrderBook::default();
         b.iter(|| {
             for i in 0..5_000 {
-                ob.event(OrderType::Limit {
+                ob.execute(OrderType::Limit {
                     id: i as u128,
                     price: 12345 + i as u64,
                     qty: i as u64,
@@ -22,7 +22,7 @@ fn big_limit_ladder(c: &mut Criterion) {
         let mut ob = OrderBook::default();
         b.iter(|| {
             for i in 0..100_000 {
-                ob.event(OrderType::Limit {
+                ob.execute(OrderType::Limit {
                     id: i as u128,
                     price: 12345 + i as u64,
                     qty: i as u64,

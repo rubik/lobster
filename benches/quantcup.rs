@@ -20,7 +20,7 @@ fn all_orders(c: &mut Criterion) {
 
         b.iter(|| {
             for ord in &orders {
-                ob.event(*ord);
+                ob.execute(*ord);
             }
         });
     });

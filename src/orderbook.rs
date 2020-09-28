@@ -41,7 +41,7 @@ impl OrderBook {
         }
     }
 
-    pub fn event(&mut self, event: OrderType) -> OrderEvent {
+    pub fn execute(&mut self, event: OrderType) -> OrderEvent {
         match event {
             OrderType::Market { id, side, qty } => {
                 let (fills, partial, filled_qty) = self.market(id, side, qty);

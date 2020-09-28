@@ -33,7 +33,7 @@ fn main() {
             let begin = Instant::now();
 
             for ord in orders.iter().take(i).skip(i - batch_size) {
-                let _new_fills = ob.event(*ord);
+                let _new_fills = ob.execute(*ord);
             }
             let elapsed = begin.elapsed();
             let nanos = elapsed.as_secs() * 1_000_000_000
