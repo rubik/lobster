@@ -231,13 +231,19 @@ impl OrderBook {
     ) -> u64 {
         let mut remaining_qty = qty;
         let mut update_bid_ask = false;
-        for (ask_price, queue) in self.asks.iter_mut() {
+        let mut bid_ask_updated = false;
+        let mut ask_iterator = self.asks.iter_mut();
+        while let Some((ask_price, queue)) = ask_iterator.next() {
+            println!("[l] price: {}, queue: {:?}", ask_price, queue);
             if queue.is_empty() {
                 continue;
             }
+            println!("uba: {}; min_ask: {:?}", update_bid_ask, self.min_ask);
             if (update_bid_ask || self.min_ask.is_none()) && !queue.is_empty() {
                 self.min_ask = Some(*ask_price);
                 update_bid_ask = false;
+                bid_ask_updated = true;
+                println!("updated min_ask to {:?}", self.min_ask);
             }
             if let Some(lp) = limit_price {
                 if lp < *ask_price {
@@ -254,13 +260,31 @@ impl OrderBook {
                 id,
                 fills,
             );
+            // process_queue guarantees that filled_qty <= remaining_qty
+            remaining_qty -= filled_qty;
             if queue.is_empty() {
                 update_bid_ask = true;
+                bid_ask_updated = false;
+            } else {
+                bid_ask_updated = true;
             }
-            remaining_qty -= filled_qty;
         }
 
-        self.update_min_ask();
+        println!("bau: {}", bid_ask_updated);
+        if !bid_ask_updated {
+            for (ask_price, queue) in ask_iterator {
+                println!("price: {}, queue: {:?}", ask_price, queue);
+                if !queue.is_empty() {
+                    self.min_ask = Some(*ask_price);
+                    bid_ask_updated = true;
+                    break;
+                }
+            }
+        }
+        println!("bau: {}", bid_ask_updated);
+        if !bid_ask_updated {
+            self.min_ask = None;
+        }
         remaining_qty
     }
 
@@ -296,10 +320,11 @@ impl OrderBook {
                 id,
                 fills,
             );
+            // process_queue guarantees that filled_qty <= remaining_qty
+            remaining_qty -= filled_qty;
             if queue.is_empty() {
                 update_bid_ask = true;
             }
-            remaining_qty -= filled_qty;
         }
 
         self.update_max_bid();
