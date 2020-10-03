@@ -17,6 +17,27 @@ criterion = "0.3"
 csv = "1.1"
 serde = { version = "1", features = ["derive"] }
 
+[profile.release]
+opt-level = 3
+debug = false
+debug-assertions = false
+incremental = false
+overflow-checks = false
+rpath = false
+lto = "thin"
+panic = "abort"
+codegen-units = 1
+
+[profile.bench]
+opt-level = 3
+debug = false
+debug-assertions = false
+incremental = false
+overflow-checks = false
+rpath = false
+lto = "thin"
+codegen-units = 1
+
 [[bench]]
 name = "simple"
 harness = false
