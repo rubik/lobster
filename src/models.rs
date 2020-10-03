@@ -37,6 +37,25 @@ pub enum OrderEvent {
     Canceled(u128),
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct BookDepth {
+    pub levels: usize,
+    pub asks: Vec<BookLevel>,
+    pub bids: Vec<BookLevel>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct BookLevel {
+    pub price: u64,
+    pub qty: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Trade {
+    pub qty: u64,
+    pub avg_price: f64,
+}
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FillMetadata {
     pub order_1: u128,
