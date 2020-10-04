@@ -10,6 +10,10 @@ homepage = "https://github.com/rubik/lobster"
 repository = "https://github.com/rubik/lobster"
 keywords = ["orderbook", "order", "limit", "hft"]
 
+[badges]
+coveralls = { repository = "rubik/lobster" }
+travis-ci = { repository = "rubik/lobster" }
+
 [dependencies]
 
 [dev-dependencies]
