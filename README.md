@@ -59,6 +59,8 @@ quantities are represented as unsigned 64-bit integers. If the traded
 instrument supports fractional prices and quantities, the conversion needs to
 be handled by the user. At this time, Lobster does not support negative prices.
 
+More information can be found in the [documentation](https://docs.rs/lobster).
+
 # Quantcup
 The winning quantcup submission is at the moment about 11x faster than Lobster.
 While Lobster can surely be improved significantly, some design choices

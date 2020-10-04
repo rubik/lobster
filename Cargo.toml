@@ -5,7 +5,9 @@ authors = ["Michele Lacchia <michelelacchia@gmail.com>"]
 edition = "2018"
 license = "ISC"
 
+readme = "README.md"
 description = "A fast limit order book (LOB)"
+documentation = "https://docs.rs/lobster"
 homepage = "https://github.com/rubik/lobster"
 repository = "https://github.com/rubik/lobster"
 keywords = ["orderbook", "order", "limit", "hft"]
