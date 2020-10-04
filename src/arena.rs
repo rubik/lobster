@@ -97,10 +97,10 @@ mod test {
                     Some((i * 100 + i, (capacity - i) as usize - 1))
                 );
             }
-            for i in capacity..2*capacity {
+            for i in capacity..2 * capacity {
                 assert_eq!(arena.get(i as u128), None);
             }
-            for i in capacity..2*capacity {
+            for i in capacity..2 * capacity {
                 arena.insert(i as u128, i * 100 + i, 2 * i);
             }
             for i in 0..capacity {
@@ -109,10 +109,13 @@ mod test {
                     Some((i * 100 + i, (capacity - i) as usize - 1))
                 );
             }
-            for (i, j) in (capacity..2*capacity).enumerate() {
+            for (i, j) in (capacity..2 * capacity).enumerate() {
                 assert_eq!(
                     arena.get(i as u128),
-                    Some(((i * 100 + i) as u64, (2*capacity - j) as usize - 1))
+                    Some((
+                        (i * 100 + i) as u64,
+                        (2 * capacity - j) as usize - 1
+                    ))
                 );
             }
         }
