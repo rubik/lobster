@@ -76,3 +76,45 @@ impl IndexMut<usize> for OrderArena {
         &mut self.orders[index]
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::OrderArena;
+
+    #[test]
+    fn growing_arena() {
+        // All the integer casting below is necessary because we are using the
+        // indices to compute the prices. It's a contrived example and the size
+        // casts do not result in overflows.
+        for capacity in 0_u64..30 {
+            let mut arena = OrderArena::new(capacity as usize);
+            for i in 0_u64..capacity {
+                arena.insert(i as u128, i * 100 + i, 2 * i);
+            }
+            for i in 0_u64..capacity {
+                assert_eq!(
+                    arena.get(i as u128),
+                    Some((i * 100 + i, (capacity - i) as usize - 1))
+                );
+            }
+            for i in capacity..2*capacity {
+                assert_eq!(arena.get(i as u128), None);
+            }
+            for i in capacity..2*capacity {
+                arena.insert(i as u128, i * 100 + i, 2 * i);
+            }
+            for i in 0..capacity {
+                assert_eq!(
+                    arena.get(i as u128),
+                    Some((i * 100 + i, (capacity - i) as usize - 1))
+                );
+            }
+            for (i, j) in (capacity..2*capacity).enumerate() {
+                assert_eq!(
+                    arena.get(i as u128),
+                    Some(((i * 100 + i) as u64, (2*capacity - j) as usize - 1))
+                );
+            }
+        }
+    }
+}
