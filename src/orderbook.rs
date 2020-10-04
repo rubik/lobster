@@ -8,6 +8,9 @@ use crate::models::{
 const DEFAULT_ARENA_CAPACITY: usize = 10_000;
 const DEFAULT_QUEUE_CAPACITY: usize = 10;
 
+/// An order book that executes orders serially through the [`execute`] method.
+///
+/// [`execute`]: #method.execute
 #[derive(Debug)]
 pub struct OrderBook {
     last_trade: Option<Trade>,
@@ -22,13 +25,33 @@ pub struct OrderBook {
 }
 
 impl Default for OrderBook {
+    /// Create an instance representing a single order book, with stats tracking
+    /// disabled, a default arena capacity of 10,000 and a default queue
+    /// capacity of 10.
     fn default() -> Self {
-        Self::new(DEFAULT_ARENA_CAPACITY, DEFAULT_QUEUE_CAPACITY)
+        Self::new(DEFAULT_ARENA_CAPACITY, DEFAULT_QUEUE_CAPACITY, false)
     }
 }
 
 impl OrderBook {
-    pub fn new(arena_capacity: usize, queue_capacity: usize) -> Self {
+    /// Create an instance representing a single order book.
+    ///
+    /// The `arena_capacity` parameter represents the number of orders that will
+    /// be pre-allocated.
+    ///
+    /// The `queue_capacity` parameter represents the capacity of each vector
+    /// storing orders at the same price point.
+    ///
+    /// The `track_stats` parameter indicates whether to enable volume and
+    /// trades tracking (see [`last_trade`] and [`traded_volume`]).
+    ///
+    /// [`last_trade`]: #method.last_trade
+    /// [`traded_volume`]: #method.traded_volume
+    pub fn new(
+        arena_capacity: usize,
+        queue_capacity: usize,
+        track_stats: bool,
+    ) -> Self {
         Self {
             last_trade: None,
             traded_volume: 0,
@@ -38,36 +61,8 @@ impl OrderBook {
             bids: BTreeMap::new(),
             arena: OrderArena::new(arena_capacity),
             default_queue_capacity: queue_capacity,
-            track_stats: false,
+            track_stats,
         }
-    }
-
-    #[inline(always)]
-    pub fn min_ask(&self) -> Option<u64> {
-        self.min_ask
-    }
-
-    #[inline(always)]
-    pub fn max_bid(&self) -> Option<u64> {
-        self.max_bid
-    }
-
-    #[inline(always)]
-    pub fn spread(&self) -> Option<u64> {
-        match (self.max_bid, self.min_ask) {
-            (Some(b), Some(a)) => Some(a - b),
-            _ => None,
-        }
-    }
-
-    #[inline(always)]
-    pub fn last_trade(&self) -> Option<Trade> {
-        self.last_trade.clone()
-    }
-
-    #[inline(always)]
-    pub fn traded_volume(&self) -> u64 {
-        self.traded_volume
     }
 
     #[cfg(test)]
@@ -82,6 +77,50 @@ impl OrderBook {
         self.bids.clone()
     }
 
+    /// Return the lowest ask price, if present.
+    #[inline(always)]
+    pub fn min_ask(&self) -> Option<u64> {
+        self.min_ask
+    }
+
+    /// Return the highest bid price, if present.
+    #[inline(always)]
+    pub fn max_bid(&self) -> Option<u64> {
+        self.max_bid
+    }
+
+    /// Return the difference of the lowest ask and highest bid, if both are
+    /// present.
+    #[inline(always)]
+    pub fn spread(&self) -> Option<u64> {
+        match (self.max_bid, self.min_ask) {
+            (Some(b), Some(a)) => Some(a - b),
+            _ => None,
+        }
+    }
+
+    /// Return the last trade recorded while stats tracking was active as a
+    /// [`Trade`] object, if present.
+    ///
+    /// [`Trade`]: struct.Trade.html
+    #[inline(always)]
+    pub fn last_trade(&self) -> Option<Trade> {
+        self.last_trade.clone()
+    }
+
+    /// Return the total traded volume for all the trades that occurred while
+    /// the stats tracking was active.
+    #[inline(always)]
+    pub fn traded_volume(&self) -> u64 {
+        self.traded_volume
+    }
+
+    /// Return the order book depth as a [`BookDepth`] struct, up to the
+    /// specified level. Bids and offers at the same price level are merged in a
+    /// single [`BookLevel`] struct.
+    ///
+    /// [`BookDepth`]: struct.BookDepth.html
+    /// [`BookLevel`]: struct.BookLevel.html
     pub fn depth(&self, levels: usize) -> BookDepth {
         let mut asks: Vec<BookLevel> = Vec::with_capacity(levels);
         let mut bids: Vec<BookLevel> = Vec::with_capacity(levels);
@@ -115,10 +154,12 @@ impl OrderBook {
         BookDepth { levels, asks, bids }
     }
 
+    /// Toggle the stats tracking on or off, depending on the `track` parameter.
     pub fn track_stats(&mut self, track: bool) {
         self.track_stats = track;
     }
 
+    /// Execute an order, returning immediately an event indicating the result.
     pub fn execute(&mut self, event: OrderType) -> OrderEvent {
         let event = self._execute(event);
         if !self.track_stats {
@@ -166,7 +207,7 @@ impl OrderBook {
             OrderType::Market { id, side, qty } => {
                 let (fills, partial, filled_qty) = self.market(id, side, qty);
                 if fills.is_empty() {
-                    OrderEvent::Unfilled
+                    OrderEvent::Unfilled(id)
                 } else {
                     match partial {
                         false => OrderEvent::Filled {
@@ -505,6 +546,16 @@ mod test {
     const DEFAULT_QUEUE_SIZE: usize = 10;
     const BID_ASK_COMBINATIONS: [(Side, Side); 2] =
         [(Side::Bid, Side::Ask), (Side::Ask, Side::Bid)];
+
+    // In general, floating point values cannot be compared for equality. That's
+    // why we don't derive PartialEq in lobster::models, but we do it here for
+    // our tests.
+    impl PartialEq for Trade {
+        fn eq(&self, other: &Self) -> bool {
+            self.qty == other.qty
+                && (self.avg_price - other.avg_price).abs() < 1.0e-6
+        }
+    }
 
     fn init_ob(events: Vec<OrderType>) -> (OrderBook, Vec<OrderEvent>) {
         let mut ob = OrderBook::default();
@@ -1199,7 +1250,7 @@ mod test {
                 qty: 5,
             });
 
-            assert_eq!(result, OrderEvent::Unfilled);
+            assert_eq!(result, OrderEvent::Unfilled(0));
         }
     }
 
