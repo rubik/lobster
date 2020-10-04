@@ -62,9 +62,9 @@ be handled by the user. At this time, Lobster does not support negative prices.
 More information can be found in the [documentation](https://docs.rs/lobster).
 
 # Quantcup
-The winning quantcup submission is at the moment about 11x faster than Lobster.
-While Lobster can surely be improved significantly, some design choices
-by necessity make it slower. Here's a non-exhaustive list:
+The winning quantcup submission is at the moment about 10-11x faster than
+Lobster. While Lobster can surely be improved significantly, some design
+choices by necessity make it slower. Here's a non-exhaustive list:
 
 1. The Quantcup solution holds all the possible price points in memory, whereas
    Lobster uses two BTreeMap structs that hold price points on demand. The
