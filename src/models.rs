@@ -45,13 +45,22 @@ pub enum OrderType {
 pub enum OrderEvent {
     /// Indicating that the corresponding order was not filled. It is only sent
     /// in response to market orders.
-    Unfilled(u128),
+    Unfilled {
+        /// The ID of the order this event is referring to.
+        id: u128,
+    },
     /// Indicating that the corresponding order was placed on the order book. It
     /// is only send in response to limit orders.
-    Placed(u128),
+    Placed {
+        /// The ID of the order this event is referring to.
+        id: u128,
+    },
     /// Indicating that the corresponding order was removed from the order book.
     /// It is only sent in response to cancel orders.
-    Canceled(u128),
+    Canceled {
+        /// The ID of the order this event is referring to.
+        id: u128,
+    },
     /// Indicating that the corresponding order was only partially filled. It is
     /// sent in response to market or limit orders.
     PartiallyFilled {
