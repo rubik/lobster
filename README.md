@@ -48,6 +48,7 @@ assert_eq!(
                 order_2: 1,
                 qty: 3,
                 price: 120,
+                taker_side: Side::Bid,
             }
         ],
     },

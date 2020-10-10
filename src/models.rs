@@ -37,7 +37,10 @@ pub enum OrderType {
     },
     /// A cancel order, which removes the order with the specified ID from the
     /// order book.
-    Cancel(u128),
+    Cancel {
+        /// The unique ID of the order to be canceled.
+        id: u128,
+    },
 }
 
 /// An event resulting from the execution of an order.
@@ -95,6 +98,8 @@ pub struct FillMetadata {
     pub qty: u64,
     /// The price at which the trade happened.
     pub price: u64,
+    /// The side of the taker order (order 1)
+    pub taker_side: Side,
 }
 
 /// A snapshot of the order book up to a certain depth level. Multiple orders at

@@ -56,7 +56,9 @@ fn main() {
 
 fn convert_to_order(id: &mut u128, record: Record) -> OrderType {
     if record.2 == 0 {
-        OrderType::Cancel(record.3 as u128)
+        OrderType::Cancel {
+            id: record.3 as u128,
+        }
     } else {
         *id += 1;
         OrderType::Limit {

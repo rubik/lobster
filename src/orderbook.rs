@@ -248,7 +248,7 @@ impl OrderBook {
                     }
                 }
             }
-            OrderType::Cancel(id) => {
+            OrderType::Cancel { id } => {
                 self.cancel(id);
                 OrderEvent::Canceled { id }
             }
@@ -413,6 +413,7 @@ impl OrderBook {
                 queue,
                 remaining_qty,
                 id,
+                Side::Bid,
                 fills,
             );
             if queue.is_empty() {
@@ -455,6 +456,7 @@ impl OrderBook {
                 queue,
                 remaining_qty,
                 id,
+                Side::Ask,
                 fills,
             );
             if queue.is_empty() {
@@ -489,6 +491,7 @@ impl OrderBook {
         opposite_orders: &mut Vec<usize>,
         remaining_qty: u64,
         id: u128,
+        side: Side,
         fills: &mut Vec<FillMetadata>,
     ) -> u64 {
         let mut qty_to_fill = remaining_qty;
@@ -523,6 +526,7 @@ impl OrderBook {
                 order_2: head_order.id,
                 qty: traded_quantity,
                 price: traded_price,
+                taker_side: side,
             };
             fills.push(fill);
             filled_qty += traded_quantity;
@@ -717,6 +721,7 @@ mod test {
                                 order_2: 0,
                                 qty: 2,
                                 price: 395,
+                                taker_side: *ask_bid,
                             }],
                         }
                     ]
@@ -920,6 +925,7 @@ mod test {
                                 order_2: 0,
                                 qty: 2,
                                 price: 395,
+                                taker_side: *ask_bid,
                             },],
                         },
                         OrderEvent::Placed { id: 2 }
@@ -985,7 +991,8 @@ mod test {
                             order_1: 3,
                             order_2: 2,
                             qty: 1,
-                            price: 398
+                            price: 398,
+                            taker_side: *ask_bid,
                         }]
                     }
                 );
@@ -1010,6 +1017,7 @@ mod test {
                                 order_2: 0,
                                 qty: 2,
                                 price: 395,
+                                taker_side: *ask_bid,
                             },],
                         },
                         OrderEvent::Placed { id: 2 }
@@ -1024,7 +1032,8 @@ mod test {
                             order_1: 3,
                             order_2: 0,
                             qty: 1,
-                            price: 395
+                            price: 395,
+                            taker_side: *ask_bid,
                         }]
                     }
                 );
@@ -1088,7 +1097,8 @@ mod test {
                             order_1: 3,
                             order_2: 2,
                             qty: 2,
-                            price: 398
+                            price: 398,
+                            taker_side: *ask_bid,
                         }]
                     }
                 );
@@ -1113,6 +1123,7 @@ mod test {
                                 order_2: 0,
                                 qty: 2,
                                 price: 395,
+                                taker_side: *ask_bid,
                             },],
                         },
                         OrderEvent::Placed { id: 2 }
@@ -1127,7 +1138,8 @@ mod test {
                             order_1: 3,
                             order_2: 0,
                             qty: 2,
-                            price: 395
+                            price: 395,
+                            taker_side: *ask_bid,
                         }]
                     }
                 );
@@ -1191,7 +1203,8 @@ mod test {
                             order_1: 3,
                             order_2: 2,
                             qty: 2,
-                            price: 398
+                            price: 398,
+                            taker_side: *ask_bid,
                         }]
                     }
                 );
@@ -1219,6 +1232,7 @@ mod test {
                                 order_2: 0,
                                 qty: 2,
                                 price: 395,
+                                taker_side: *ask_bid,
                             },],
                         },
                         OrderEvent::Placed { id: 2 }
@@ -1233,7 +1247,8 @@ mod test {
                             order_1: 3,
                             order_2: 0,
                             qty: 5,
-                            price: 395
+                            price: 395,
+                            taker_side: *ask_bid,
                         }]
                     }
                 );
@@ -1311,13 +1326,15 @@ mod test {
                                 order_1: 3,
                                 order_2: 2,
                                 qty: 2,
-                                price: 398
+                                price: 398,
+                                taker_side: *ask_bid,
                             },
                             FillMetadata {
                                 order_1: 3,
                                 order_2: 0,
                                 qty: 12,
-                                price: 395
+                                price: 395,
+                                taker_side: *ask_bid,
                             }
                         ]
                     }
@@ -1340,7 +1357,8 @@ mod test {
                                 order_2: 0,
                                 qty: 2,
                                 price: 395,
-                            },],
+                                taker_side: *ask_bid,
+                            }],
                         },
                         OrderEvent::Placed { id: 2 }
                     ]
@@ -1355,13 +1373,15 @@ mod test {
                                 order_1: 3,
                                 order_2: 0,
                                 qty: 10,
-                                price: 395
+                                price: 395,
+                                taker_side: *ask_bid,
                             },
                             FillMetadata {
                                 order_1: 3,
                                 order_2: 2,
                                 qty: 2,
-                                price: 398
+                                price: 398,
+                                taker_side: *ask_bid,
                             }
                         ]
                     }
@@ -1423,13 +1443,15 @@ mod test {
                                 order_1: 3,
                                 order_2: 2,
                                 qty: 2,
-                                price: 398
+                                price: 398,
+                                taker_side: *ask_bid,
                             },
                             FillMetadata {
                                 order_1: 3,
                                 order_2: 0,
                                 qty: 5,
-                                price: 395
+                                price: 395,
+                                taker_side: *ask_bid,
                             }
                         ]
                     }
@@ -1455,6 +1477,7 @@ mod test {
                                 order_2: 0,
                                 qty: 2,
                                 price: 395,
+                                taker_side: *ask_bid,
                             },],
                         },
                         OrderEvent::Placed { id: 2 }
@@ -1469,7 +1492,8 @@ mod test {
                             order_1: 3,
                             order_2: 0,
                             qty: 7,
-                            price: 395
+                            price: 395,
+                            taker_side: *ask_bid,
                         },]
                     }
                 );
@@ -1488,7 +1512,7 @@ mod test {
     #[test]
     fn cancel_non_existing_order() {
         let (mut ob, _) = init_ob(vec![]);
-        let result = ob.execute(OrderType::Cancel(0));
+        let result = ob.execute(OrderType::Cancel { id: 0 });
         assert_eq!(result, OrderEvent::Canceled { id: 0 });
         assert_eq!(ob.min_ask(), None);
         assert_eq!(ob.max_bid(), None);
@@ -1506,7 +1530,7 @@ mod test {
                 qty: 12,
                 price: 395,
             }]);
-            let result = ob.execute(OrderType::Cancel(0));
+            let result = ob.execute(OrderType::Cancel { id: 0 });
             assert_eq!(results, vec![OrderEvent::Placed { id: 0 }]);
             assert_eq!(result, OrderEvent::Canceled { id: 0 });
             assert_eq!(ob.min_ask(), None);
@@ -1545,7 +1569,7 @@ mod test {
                     price: 398,
                 },
             ]);
-            let result = ob.execute(OrderType::Cancel(0));
+            let result = ob.execute(OrderType::Cancel { id: 0 });
             if *bid_ask == Side::Bid {
                 assert_eq!(
                     results,
@@ -1577,6 +1601,7 @@ mod test {
                                 order_2: 0,
                                 qty: 2,
                                 price: 395,
+                                taker_side: *ask_bid,
                             },],
                         },
                         OrderEvent::Placed { id: 2 }
