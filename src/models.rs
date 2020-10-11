@@ -90,7 +90,7 @@ pub enum OrderEvent {
 /// resting orders, it generates multiple `FillMetadata` values.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FillMetadata {
-    /// The ID of the order that triggered the fill.
+    /// The ID of the order that triggered the fill (taker).
     pub order_1: u128,
     /// The ID of the matching order.
     pub order_2: u128,
