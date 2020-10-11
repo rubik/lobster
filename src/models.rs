@@ -7,6 +7,17 @@ pub enum Side {
     Ask,
 }
 
+impl std::ops::Not for Side {
+    type Output = Side;
+
+    fn not(self) -> Self::Output {
+        match self {
+            Side::Bid => Side::Ask,
+            Side::Ask => Side::Bid,
+        }
+    }
+}
+
 /// An order to be executed by the order book.
 #[derive(Debug, Copy, Clone)]
 pub enum OrderType {
@@ -150,5 +161,16 @@ pub struct LimitOrder {
 impl LimitOrder {
     pub fn new(id: u128, qty: u64, price: u64) -> Self {
         Self { id, qty, price }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Side;
+
+    #[test]
+    fn side_negation() {
+        assert_eq!(!Side::Ask, Side::Bid);
+        assert_eq!(!Side::Bid, Side::Ask);
     }
 }
