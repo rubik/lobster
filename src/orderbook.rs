@@ -510,14 +510,17 @@ impl OrderBook {
                 continue;
             }
             let traded_quantity: u64;
+            let filled;
 
             if qty_to_fill >= available_qty {
                 traded_quantity = available_qty;
                 qty_to_fill -= available_qty;
                 filled_index = Some(index);
+                filled = true;
             } else {
                 traded_quantity = qty_to_fill;
                 qty_to_fill = 0;
+                filled = false;
             }
             head_order.qty -= traded_quantity;
             let fill: FillMetadata;
@@ -527,6 +530,7 @@ impl OrderBook {
                 qty: traded_quantity,
                 price: traded_price,
                 taker_side: side,
+                total_fill: filled,
             };
             fills.push(fill);
             filled_qty += traded_quantity;
@@ -722,6 +726,7 @@ mod test {
                                 qty: 2,
                                 price: 395,
                                 taker_side: *ask_bid,
+                                total_fill: false,
                             }],
                         }
                     ]
@@ -926,7 +931,8 @@ mod test {
                                 qty: 2,
                                 price: 395,
                                 taker_side: *ask_bid,
-                            },],
+                                total_fill: false,
+                            }],
                         },
                         OrderEvent::Placed { id: 2 }
                     ]
@@ -993,6 +999,7 @@ mod test {
                             qty: 1,
                             price: 398,
                             taker_side: *ask_bid,
+                            total_fill: false,
                         }]
                     }
                 );
@@ -1018,7 +1025,8 @@ mod test {
                                 qty: 2,
                                 price: 395,
                                 taker_side: *ask_bid,
-                            },],
+                                total_fill: false,
+                            }],
                         },
                         OrderEvent::Placed { id: 2 }
                     ]
@@ -1034,6 +1042,7 @@ mod test {
                             qty: 1,
                             price: 395,
                             taker_side: *ask_bid,
+                            total_fill: false,
                         }]
                     }
                 );
@@ -1099,6 +1108,7 @@ mod test {
                             qty: 2,
                             price: 398,
                             taker_side: *ask_bid,
+                            total_fill: true,
                         }]
                     }
                 );
@@ -1124,7 +1134,8 @@ mod test {
                                 qty: 2,
                                 price: 395,
                                 taker_side: *ask_bid,
-                            },],
+                                total_fill: false,
+                            }],
                         },
                         OrderEvent::Placed { id: 2 }
                     ]
@@ -1140,6 +1151,7 @@ mod test {
                             qty: 2,
                             price: 395,
                             taker_side: *ask_bid,
+                            total_fill: false,
                         }]
                     }
                 );
@@ -1205,6 +1217,7 @@ mod test {
                             qty: 2,
                             price: 398,
                             taker_side: *ask_bid,
+                            total_fill: true,
                         }]
                     }
                 );
@@ -1233,7 +1246,8 @@ mod test {
                                 qty: 2,
                                 price: 395,
                                 taker_side: *ask_bid,
-                            },],
+                                total_fill: false,
+                            }],
                         },
                         OrderEvent::Placed { id: 2 }
                     ]
@@ -1249,6 +1263,7 @@ mod test {
                             qty: 5,
                             price: 395,
                             taker_side: *ask_bid,
+                            total_fill: false,
                         }]
                     }
                 );
@@ -1328,6 +1343,7 @@ mod test {
                                 qty: 2,
                                 price: 398,
                                 taker_side: *ask_bid,
+                                total_fill: true,
                             },
                             FillMetadata {
                                 order_1: 3,
@@ -1335,6 +1351,7 @@ mod test {
                                 qty: 12,
                                 price: 395,
                                 taker_side: *ask_bid,
+                                total_fill: true,
                             }
                         ]
                     }
@@ -1358,6 +1375,7 @@ mod test {
                                 qty: 2,
                                 price: 395,
                                 taker_side: *ask_bid,
+                                total_fill: false,
                             }],
                         },
                         OrderEvent::Placed { id: 2 }
@@ -1375,6 +1393,7 @@ mod test {
                                 qty: 10,
                                 price: 395,
                                 taker_side: *ask_bid,
+                                total_fill: true,
                             },
                             FillMetadata {
                                 order_1: 3,
@@ -1382,6 +1401,7 @@ mod test {
                                 qty: 2,
                                 price: 398,
                                 taker_side: *ask_bid,
+                                total_fill: true,
                             }
                         ]
                     }
@@ -1445,6 +1465,7 @@ mod test {
                                 qty: 2,
                                 price: 398,
                                 taker_side: *ask_bid,
+                                total_fill: true,
                             },
                             FillMetadata {
                                 order_1: 3,
@@ -1452,6 +1473,7 @@ mod test {
                                 qty: 5,
                                 price: 395,
                                 taker_side: *ask_bid,
+                                total_fill: false,
                             }
                         ]
                     }
@@ -1478,7 +1500,8 @@ mod test {
                                 qty: 2,
                                 price: 395,
                                 taker_side: *ask_bid,
-                            },],
+                                total_fill: false,
+                            }],
                         },
                         OrderEvent::Placed { id: 2 }
                     ]
@@ -1494,7 +1517,8 @@ mod test {
                             qty: 7,
                             price: 395,
                             taker_side: *ask_bid,
-                        },]
+                            total_fill: false,
+                        }]
                     }
                 );
                 assert_eq!(ob.min_ask(), Some(395));
@@ -1602,7 +1626,8 @@ mod test {
                                 qty: 2,
                                 price: 395,
                                 taker_side: *ask_bid,
-                            },],
+                                total_fill: false,
+                            }],
                         },
                         OrderEvent::Placed { id: 2 }
                     ]

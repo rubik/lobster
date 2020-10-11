@@ -24,6 +24,7 @@
 //!                 qty: 3,
 //!                 price: 120,
 //!                 taker_side: Side::Bid,
+//!                 total_fill: true,
 //!             }
 //!         ],
 //!     },

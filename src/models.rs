@@ -100,6 +100,9 @@ pub struct FillMetadata {
     pub price: u64,
     /// The side of the taker order (order 1)
     pub taker_side: Side,
+    /// Whether this order was a total (true) or partial (false) fill of the
+    /// maker order.
+    pub total_fill: bool,
 }
 
 /// A snapshot of the order book up to a certain depth level. Multiple orders at
