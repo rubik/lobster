@@ -1,6 +1,6 @@
 [package]
 name = "lobster"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["Michele Lacchia <michelelacchia@gmail.com>"]
 edition = "2018"
 license = "ISC"
