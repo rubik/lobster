@@ -142,7 +142,7 @@ pub struct BookLevel {
 }
 
 /// A trade that happened as part of the matching process.
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Trade {
     /// The total quantity transacted as part of this trade.
     pub qty: u64,

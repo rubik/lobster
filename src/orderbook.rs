@@ -105,7 +105,7 @@ impl OrderBook {
     /// [`Trade`]: struct.Trade.html
     #[inline(always)]
     pub fn last_trade(&self) -> Option<Trade> {
-        self.last_trade.clone()
+        self.last_trade
     }
 
     /// Return the total traded volume for all the trades that occurred while
