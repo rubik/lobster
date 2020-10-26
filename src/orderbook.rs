@@ -319,6 +319,11 @@ impl OrderBook {
                 if remaining_qty > 0 {
                     partial = true;
                     let index = self.arena.insert(id, price, remaining_qty);
+                    let queue_capacity = self.default_queue_capacity;
+                    self.bids
+                        .entry(price)
+                        .or_insert_with(|| Vec::with_capacity(queue_capacity))
+                        .push(index);
                     match self.max_bid {
                         None => {
                             self.max_bid = Some(price);
@@ -327,19 +332,6 @@ impl OrderBook {
                             self.max_bid = Some(price);
                         }
                         _ => {}
-                    };
-                    let queue_capacity = self.default_queue_capacity;
-                    self.bids
-                        .entry(price)
-                        .or_insert_with(|| Vec::with_capacity(queue_capacity))
-                        .push(index);
-                    match self.max_bid {
-                        None => self.max_bid = Some(price),
-                        Some(p) => {
-                            if p < price {
-                                self.max_bid = Some(price);
-                            }
-                        }
                     };
                 }
             }
@@ -354,6 +346,11 @@ impl OrderBook {
                             self.min_ask = Some(price);
                         }
                     }
+                    let queue_capacity = self.default_queue_capacity;
+                    self.asks
+                        .entry(price)
+                        .or_insert_with(|| Vec::with_capacity(queue_capacity))
+                        .push(index);
                     match self.min_ask {
                         None => {
                             self.min_ask = Some(price);
@@ -362,19 +359,6 @@ impl OrderBook {
                             self.min_ask = Some(price);
                         }
                         _ => {}
-                    };
-                    let queue_capacity = self.default_queue_capacity;
-                    self.asks
-                        .entry(price)
-                        .or_insert_with(|| Vec::with_capacity(queue_capacity))
-                        .push(index);
-                    match self.min_ask {
-                        None => self.min_ask = Some(price),
-                        Some(p) => {
-                            if p > price {
-                                self.min_ask = Some(price);
-                            }
-                        }
                     };
                 }
             }

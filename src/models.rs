@@ -151,17 +151,11 @@ pub struct Trade {
     pub avg_price: f64,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct LimitOrder {
     pub id: u128,
     pub qty: u64,
     pub price: u64,
-}
-
-impl LimitOrder {
-    pub fn new(id: u128, qty: u64, price: u64) -> Self {
-        Self { id, qty, price }
-    }
 }
 
 #[cfg(test)]
