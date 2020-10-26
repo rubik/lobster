@@ -173,13 +173,17 @@ impl OrderBook {
                 fills,
             } => {
                 self.traded_volume += filled_qty;
+                // If we are here, fills is not empty, so it's safe to unwrap it
+                let last_fill = fills.last().unwrap();
                 self.last_trade = Some(Trade {
-                    qty: filled_qty,
+                    total_qty: filled_qty,
                     avg_price: fills
                         .iter()
                         .map(|fm| fm.price * fm.qty)
                         .sum::<u64>() as f64
                         / (filled_qty as f64),
+                    last_qty: last_fill.qty,
+                    last_price: last_fill.price,
                 });
             }
             OrderEvent::PartiallyFilled {
@@ -188,13 +192,17 @@ impl OrderBook {
                 fills,
             } => {
                 self.traded_volume += filled_qty;
+                // If we are here, fills is not empty, so it's safe to unwrap it
+                let last_fill = fills.last().unwrap();
                 self.last_trade = Some(Trade {
-                    qty: filled_qty,
+                    total_qty: filled_qty,
                     avg_price: fills
                         .iter()
                         .map(|fm| fm.price * fm.qty)
                         .sum::<u64>() as f64
                         / (filled_qty as f64),
+                    last_qty: last_fill.qty,
+                    last_price: last_fill.price,
                 });
             }
             _ => {}
@@ -541,11 +549,13 @@ mod test {
 
     // In general, floating point values cannot be compared for equality. That's
     // why we don't derive PartialEq in lobster::models, but we do it here for
-    // our tests.
+    // our tests in some very specific cases.
     impl PartialEq for Trade {
         fn eq(&self, other: &Self) -> bool {
-            self.qty == other.qty
+            self.total_qty == other.total_qty
                 && (self.avg_price - other.avg_price).abs() < 1.0e-6
+                && self.last_qty == other.last_qty
+                && self.last_price == other.last_price
         }
     }
 
@@ -735,8 +745,10 @@ mod test {
                 assert_eq!(
                     ob.last_trade(),
                     Some(Trade {
-                        qty: 2,
-                        avg_price: 395.0
+                        total_qty: 2,
+                        avg_price: 395.0,
+                        last_qty: 2,
+                        last_price: 395,
                     })
                 );
             }

@@ -145,10 +145,14 @@ pub struct BookLevel {
 #[derive(Debug, Copy, Clone)]
 pub struct Trade {
     /// The total quantity transacted as part of this trade.
-    pub qty: u64,
+    pub total_qty: u64,
     /// The volume-weighted average price computed from all the order fills
     /// within this trade.
     pub avg_price: f64,
+    /// The price of the last fill that was part of this trade.
+    pub last_price: u64,
+    /// The quantity of the last fill that was part of this trade.
+    pub last_qty: u64,
 }
 
 #[derive(Debug, PartialEq)]
