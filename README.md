@@ -93,7 +93,8 @@ choices by necessity make it slower. Here's a non-exhaustive list:
 # Todo
 1. Remove `OrderBook::update_min_ask` and `OrderBook::update_max_bid` and
    instead update the min ask/max bid values only when needed. Currently those
-   methods are called on every order execution.
+   methods are called on every order execution, and flamegraph analysis
+   confirms that they are the main bottleneck.
 2. Experiment with replacing `BTreeMap`s with Trie from
    [`qp_trie`](https://github.com/sdleffler/qp-trie-rs).
 
