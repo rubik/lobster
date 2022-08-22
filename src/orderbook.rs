@@ -503,8 +503,7 @@ impl OrderBook {
                 filled = false;
             }
             head_order.qty -= traded_quantity;
-            let fill: FillMetadata;
-            fill = FillMetadata {
+            let fill = FillMetadata {
                 order_1: id,
                 order_2: head_order.id,
                 qty: traded_quantity,
