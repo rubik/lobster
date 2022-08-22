@@ -216,18 +216,17 @@ impl OrderBook {
                 let (fills, partial, filled_qty) = self.market(id, side, qty);
                 if fills.is_empty() {
                     OrderEvent::Unfilled { id }
+                } else if partial {
+                    OrderEvent::PartiallyFilled {
+                        id,
+                        filled_qty,
+                        fills,
+                    }
                 } else {
-                    match partial {
-                        false => OrderEvent::Filled {
-                            id,
-                            filled_qty,
-                            fills,
-                        },
-                        true => OrderEvent::PartiallyFilled {
-                            id,
-                            filled_qty,
-                            fills,
-                        },
+                    OrderEvent::Filled {
+                        id,
+                        filled_qty,
+                        fills,
                     }
                 }
             }
@@ -241,18 +240,17 @@ impl OrderBook {
                     self.limit(id, side, qty, price);
                 if fills.is_empty() {
                     OrderEvent::Placed { id }
+                } else if partial {
+                    OrderEvent::PartiallyFilled {
+                        id,
+                        filled_qty,
+                        fills,
+                    }
                 } else {
-                    match partial {
-                        false => OrderEvent::Filled {
-                            id,
-                            filled_qty,
-                            fills,
-                        },
-                        true => OrderEvent::PartiallyFilled {
-                            id,
-                            filled_qty,
-                            fills,
-                        },
+                    OrderEvent::Filled {
+                        id,
+                        filled_qty,
+                        fills,
                     }
                 }
             }
