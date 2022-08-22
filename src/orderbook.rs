@@ -451,19 +451,13 @@ impl OrderBook {
 
     fn update_min_ask(&mut self) {
         let mut cur_asks = self.asks.iter().filter(|(_, q)| !q.is_empty());
-        self.min_ask = match cur_asks.next() {
-            None => None,
-            Some((p, _)) => Some(*p),
-        };
+        self.min_ask = cur_asks.next().map(|(p, _)| *p);
     }
 
     fn update_max_bid(&mut self) {
         let mut cur_bids =
             self.bids.iter().rev().filter(|(_, q)| !q.is_empty());
-        self.max_bid = match cur_bids.next() {
-            None => None,
-            Some((p, _)) => Some(*p),
-        };
+        self.max_bid = cur_bids.next().map(|(p, _)| *p);
     }
 
     fn process_queue(
