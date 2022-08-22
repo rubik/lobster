@@ -287,24 +287,14 @@ impl OrderBook {
         side: Side,
         qty: u64,
     ) -> (Vec<FillMetadata>, bool, u64) {
-        let mut partial = false;
-        let remaining_qty;
         let mut fills = Vec::new();
 
-        match side {
-            Side::Bid => {
-                remaining_qty = self.match_with_asks(id, qty, &mut fills, None);
-                if remaining_qty > 0 {
-                    partial = true;
-                }
-            }
-            Side::Ask => {
-                remaining_qty = self.match_with_bids(id, qty, &mut fills, None);
-                if remaining_qty > 0 {
-                    partial = true;
-                }
-            }
-        }
+        let remaining_qty = match side {
+            Side::Bid => self.match_with_asks(id, qty, &mut fills, None),
+            Side::Ask => self.match_with_bids(id, qty, &mut fills, None),
+        };
+
+        let partial = remaining_qty > 0;
 
         (fills, partial, qty - remaining_qty)
     }
