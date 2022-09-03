@@ -19,7 +19,7 @@ travis-ci = { repository = "rubik/lobster" }
 [dependencies]
 
 [dev-dependencies]
-criterion = "0.3"
+criterion = { version = "0.3", features = ["html_reports"] }
 csv = "1.1"
 serde = { version = "1", features = ["derive"] }
 
