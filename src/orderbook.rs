@@ -216,18 +216,17 @@ impl OrderBook {
                 let (fills, partial, filled_qty) = self.market(id, side, qty);
                 if fills.is_empty() {
                     OrderEvent::Unfilled { id }
+                } else if partial {
+                    OrderEvent::PartiallyFilled {
+                        id,
+                        filled_qty,
+                        fills,
+                    }
                 } else {
-                    match partial {
-                        false => OrderEvent::Filled {
-                            id,
-                            filled_qty,
-                            fills,
-                        },
-                        true => OrderEvent::PartiallyFilled {
-                            id,
-                            filled_qty,
-                            fills,
-                        },
+                    OrderEvent::Filled {
+                        id,
+                        filled_qty,
+                        fills,
                     }
                 }
             }
@@ -241,18 +240,17 @@ impl OrderBook {
                     self.limit(id, side, qty, price);
                 if fills.is_empty() {
                     OrderEvent::Placed { id }
+                } else if partial {
+                    OrderEvent::PartiallyFilled {
+                        id,
+                        filled_qty,
+                        fills,
+                    }
                 } else {
-                    match partial {
-                        false => OrderEvent::Filled {
-                            id,
-                            filled_qty,
-                            fills,
-                        },
-                        true => OrderEvent::PartiallyFilled {
-                            id,
-                            filled_qty,
-                            fills,
-                        },
+                    OrderEvent::Filled {
+                        id,
+                        filled_qty,
+                        fills,
                     }
                 }
             }
@@ -287,24 +285,14 @@ impl OrderBook {
         side: Side,
         qty: u64,
     ) -> (Vec<FillMetadata>, bool, u64) {
-        let mut partial = false;
-        let remaining_qty;
         let mut fills = Vec::new();
 
-        match side {
-            Side::Bid => {
-                remaining_qty = self.match_with_asks(id, qty, &mut fills, None);
-                if remaining_qty > 0 {
-                    partial = true;
-                }
-            }
-            Side::Ask => {
-                remaining_qty = self.match_with_bids(id, qty, &mut fills, None);
-                if remaining_qty > 0 {
-                    partial = true;
-                }
-            }
-        }
+        let remaining_qty = match side {
+            Side::Bid => self.match_with_asks(id, qty, &mut fills, None),
+            Side::Ask => self.match_with_bids(id, qty, &mut fills, None),
+        };
+
+        let partial = remaining_qty > 0;
 
         (fills, partial, qty - remaining_qty)
     }
@@ -463,19 +451,13 @@ impl OrderBook {
 
     fn update_min_ask(&mut self) {
         let mut cur_asks = self.asks.iter().filter(|(_, q)| !q.is_empty());
-        self.min_ask = match cur_asks.next() {
-            None => None,
-            Some((p, _)) => Some(*p),
-        };
+        self.min_ask = cur_asks.next().map(|(p, _)| *p);
     }
 
     fn update_max_bid(&mut self) {
         let mut cur_bids =
             self.bids.iter().rev().filter(|(_, q)| !q.is_empty());
-        self.max_bid = match cur_bids.next() {
-            None => None,
-            Some((p, _)) => Some(*p),
-        };
+        self.max_bid = cur_bids.next().map(|(p, _)| *p);
     }
 
     fn process_queue(
@@ -515,8 +497,7 @@ impl OrderBook {
                 filled = false;
             }
             head_order.qty -= traded_quantity;
-            let fill: FillMetadata;
-            fill = FillMetadata {
+            let fill = FillMetadata {
                 order_1: id,
                 order_2: head_order.id,
                 qty: traded_quantity,
