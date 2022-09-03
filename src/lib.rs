@@ -36,7 +36,7 @@
 //! instrument supports fractional prices and quantities, the conversion needs to
 //! be handled by the user. At this time, Lobster does not support negative prices.
 
-#![warn(missing_docs, missing_debug_implementations, broken_intra_doc_links)]
+#![warn(missing_docs, missing_debug_implementations, rustdoc::broken_intra_doc_links)]
 
 mod arena;
 mod models;
