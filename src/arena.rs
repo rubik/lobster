@@ -1,13 +1,21 @@
-use std::collections::HashMap;
-use std::ops::{Index, IndexMut};
+#[cfg(feature = "no_std")]
+extern crate hashbrown;
 
-use crate::models::LimitOrder;
+#[cfg(feature = "no_std")]
+use hashbrown::HashMap;
+
+#[cfg(feature = "std")]
+use std::collections::HashMap;
+
+use core::ops::{Index, IndexMut};
+
+use crate::models::{ LimitOrder, Id};
 
 #[derive(Debug)]
 pub struct OrderArena {
     orders: Vec<LimitOrder>,
     free: Vec<usize>,
-    order_map: HashMap<u128, usize>,
+    order_map: HashMap<Id, usize>,
 }
 
 impl OrderArena {
@@ -30,18 +38,18 @@ impl OrderArena {
         list
     }
 
-    pub fn get(&self, id: u128) -> Option<(u64, usize)> {
+    pub fn get(&self, id: Id) -> Option<(u64, usize)> {
         self.order_map.get(&id).map(|i| (self.orders[*i].price, *i))
     }
 
     #[cfg(test)]
-    pub fn get_full(&self, id: u128) -> Option<(u64, u64, usize)> {
+    pub fn get_full(&self, id: Id) -> Option<(u64, u64, usize)> {
         self.order_map
             .get(&id)
             .map(|i| (self.orders[*i].price, self.orders[*i].qty, *i))
     }
 
-    pub fn insert(&mut self, id: u128, price: u64, qty: u64) -> usize {
+    pub fn insert(&mut self, id: Id, price: u64, qty: u64) -> usize {
         match self.free.pop() {
             None => {
                 self.orders.push(LimitOrder { id, price, qty });
@@ -60,7 +68,7 @@ impl OrderArena {
         }
     }
 
-    pub fn delete(&mut self, id: &u128) -> bool {
+    pub fn delete(&mut self, id: &Id) -> bool {
         if let Some(idx) = self.order_map.remove(id) {
             if let Some(mut ord) = self.orders.get_mut(idx) {
                 self.free.push(idx);

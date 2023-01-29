@@ -4,6 +4,7 @@ use std::time::Instant;
 
 type Record = (u128, String, u64, u64);
 
+
 fn main() {
     let file = File::open("data/orders.csv").unwrap();
     let mut rdr = csv::ReaderBuilder::new()

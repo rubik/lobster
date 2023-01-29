@@ -17,11 +17,14 @@ coveralls = { repository = "rubik/lobster" }
 travis-ci = { repository = "rubik/lobster" }
 
 [dependencies]
+hashbrown = { version = "0.1",  optional=true }
+serde = { version = "1.0.152", features = ["derive"], optional=true }
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }
 csv = "1.1"
-serde = { version = "1", features = ["derive"] }
+# serde = { version = "1", features = ["derive"] }
+
 
 [profile.release]
 opt-level = 3
@@ -51,3 +54,15 @@ harness = false
 [[bench]]
 name = "quantcup"
 harness = false
+
+
+[[workspaces]]
+members = [
+  "lobster-js"
+]
+
+[features]
+default = ["std"]
+std = []
+no_std = ["hashbrown"]
+wasm = ["serde"]

@@ -1,3 +1,5 @@
+
+
 //! Lobster implements a single-threaded order book. To use Lobster, create an
 //! order book instance with default parameters, and send orders for execution:
 //!
@@ -35,6 +37,7 @@
 //! quantities are represented as unsigned 64-bit integers. If the traded
 //! instrument supports fractional prices and quantities, the conversion needs to
 //! be handled by the user. At this time, Lobster does not support negative prices.
+
 
 #![warn(missing_docs, missing_debug_implementations, rustdoc::broken_intra_doc_links)]
 

@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "strict": false,
+    "sourceMap": true,
+    "lib": ["ESNext", "DOM"],
+    "target": "ESNext",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "esModuleInterop": true,
+    "types": [""],
+    "typeRoots": [
+      "node_modules/@types",
+      "src/@types"
+    ]
+  }
+}
