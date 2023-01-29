@@ -1,4 +1,12 @@
+#[cfg(feature = "wasm")]
+use serde::{Deserialize, Serialize};
+#[cfg(not(feature = "wasm"))]
+pub type Id = u128;
+#[cfg(feature = "wasm")]
+pub type Id = u64;
+
 /// An order book side.
+#[cfg_attr(feature = "wasm", derive(Deserialize, Serialize))]
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum Side {
     /// The bid (or buy) side.
@@ -7,7 +15,8 @@ pub enum Side {
     Ask,
 }
 
-impl std::ops::Not for Side {
+
+impl core::ops::Not for Side {
     type Output = Side;
 
     fn not(self) -> Self::Output {
@@ -17,15 +26,16 @@ impl std::ops::Not for Side {
         }
     }
 }
-
 /// An order to be executed by the order book.
+#[cfg_attr(feature = "wasm", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "wasm", serde(tag = "type"))]
 #[derive(Debug, Copy, Clone)]
 pub enum OrderType {
     /// A market order, which is either filled immediately (even partially), or
     /// canceled.
     Market {
         /// The unique ID of this order.
-        id: u128,
+        id: Id,
         /// The order side. It will be matched against the resting orders on the
         /// other side of the order book.
         side: Side,
@@ -36,7 +46,7 @@ pub enum OrderType {
     /// book.
     Limit {
         /// The unique ID of this order.
-        id: u128,
+        id: Id,
         /// The order side. It will be matched against the resting orders on the
         /// other side of the order book.
         side: Side,
@@ -50,10 +60,12 @@ pub enum OrderType {
     /// order book.
     Cancel {
         /// The unique ID of the order to be canceled.
-        id: u128,
+        id: Id,
     },
 }
 
+#[cfg_attr(feature = "wasm", derive(Serialize))]
+#[cfg_attr(feature = "wasm", serde(tag = "type", content = "data"))]
 /// An event resulting from the execution of an order.
 #[derive(Debug, PartialEq, Clone)]
 pub enum OrderEvent {
@@ -61,25 +73,25 @@ pub enum OrderEvent {
     /// in response to market orders.
     Unfilled {
         /// The ID of the order this event is referring to.
-        id: u128,
+        id: Id,
     },
     /// Indicating that the corresponding order was placed on the order book. It
     /// is only send in response to limit orders.
     Placed {
         /// The ID of the order this event is referring to.
-        id: u128,
+        id: Id,
     },
     /// Indicating that the corresponding order was removed from the order book.
     /// It is only sent in response to cancel orders.
     Canceled {
         /// The ID of the order this event is referring to.
-        id: u128,
+        id: Id,
     },
     /// Indicating that the corresponding order was only partially filled. It is
     /// sent in response to market or limit orders.
     PartiallyFilled {
         /// The ID of the order this event is referring to.
-        id: u128,
+        id: Id,
         /// The filled quantity.
         filled_qty: u64,
         /// A vector with information on the order fills.
@@ -89,7 +101,7 @@ pub enum OrderEvent {
     /// sent in response to market or limit orders.
     Filled {
         /// The ID of the order this event is referring to.
-        id: u128,
+        id: Id,
         /// The filled quantity.
         filled_qty: u64,
         /// A vector with information on the order fills.
@@ -99,12 +111,13 @@ pub enum OrderEvent {
 
 /// Information on a single order fill. When an order is matched with multiple
 /// resting orders, it generates multiple `FillMetadata` values.
+#[cfg_attr(feature = "wasm", derive(Serialize))]
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FillMetadata {
     /// The ID of the order that triggered the fill (taker).
-    pub order_1: u128,
+    pub order_1: Id,
     /// The ID of the matching order.
-    pub order_2: u128,
+    pub order_2: Id,
     /// The quantity that was traded.
     pub qty: u64,
     /// The price at which the trade happened.
@@ -157,7 +170,7 @@ pub struct Trade {
 
 #[derive(Debug, PartialEq)]
 pub struct LimitOrder {
-    pub id: u128,
+    pub id: Id,
     pub qty: u64,
     pub price: u64,
 }

@@ -1,8 +1,14 @@
+#[cfg(feature = "no_std")]
+extern crate alloc;
+#[cfg(feature = "no_std")]
+use alloc::collections::BTreeMap;
+
+#[cfg(feature = "std")]
 use std::collections::BTreeMap;
 
 use crate::arena::OrderArena;
 use crate::models::{
-    BookDepth, BookLevel, FillMetadata, OrderEvent, OrderType, Side, Trade,
+    Id, BookDepth, BookLevel, FillMetadata, OrderEvent, OrderType, Side, Trade,
 };
 
 const DEFAULT_ARENA_CAPACITY: usize = 10_000;
@@ -261,7 +267,7 @@ impl OrderBook {
         }
     }
 
-    fn cancel(&mut self, id: u128) -> bool {
+    fn cancel(&mut self, id: Id) -> bool {
         if let Some((price, idx)) = self.arena.get(id) {
             if let Some(ref mut queue) = self.asks.get_mut(&price) {
                 if let Some(i) = queue.iter().position(|i| *i == idx) {
@@ -281,7 +287,7 @@ impl OrderBook {
 
     fn market(
         &mut self,
-        id: u128,
+        id: Id,
         side: Side,
         qty: u64,
     ) -> (Vec<FillMetadata>, bool, u64) {
@@ -299,7 +305,7 @@ impl OrderBook {
 
     fn limit(
         &mut self,
-        id: u128,
+        id: Id,
         side: Side,
         qty: u64,
         price: u64,
@@ -365,7 +371,7 @@ impl OrderBook {
 
     fn match_with_asks(
         &mut self,
-        id: u128,
+        id: Id,
         qty: u64,
         fills: &mut Vec<FillMetadata>,
         limit_price: Option<u64>,
@@ -408,7 +414,7 @@ impl OrderBook {
 
     fn match_with_bids(
         &mut self,
-        id: u128,
+        id: Id,
         qty: u64,
         fills: &mut Vec<FillMetadata>,
         limit_price: Option<u64>,
@@ -464,7 +470,7 @@ impl OrderBook {
         arena: &mut OrderArena,
         opposite_orders: &mut Vec<usize>,
         remaining_qty: u64,
-        id: u128,
+        id: Id,
         side: Side,
         fills: &mut Vec<FillMetadata>,
     ) -> u64 {
@@ -522,7 +528,8 @@ mod test {
         BookDepth, BookLevel, FillMetadata, OrderBook, OrderEvent, OrderType,
         Side, Trade,
     };
-    use std::collections::BTreeMap;
+    extern crate alloc;
+    use alloc::collections::BTreeMap;
 
     const DEFAULT_QUEUE_SIZE: usize = 10;
     const BID_ASK_COMBINATIONS: [(Side, Side); 2] =

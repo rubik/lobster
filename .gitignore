@@ -5,3 +5,5 @@ quantcup/score
 quantcup/test
 *.gch
 perf.data*
+.vscode
+node_modules
